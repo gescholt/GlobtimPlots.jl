@@ -477,7 +477,10 @@ end
     end
 end
 
-include("test_morse_slider.jl")
+# NOTE: test_morse_slider.jl was included here but never existed in git —
+# Pkg.test had been failing on the missing file since ≤2026-05. The Morse
+# slider helpers are still unimplemented (bead u8lx); re-add its test file
+# together with the implementation.
 
 # Render smokes for the most-used entry points (bead fjee)
 include("test_render_smokes.jl")

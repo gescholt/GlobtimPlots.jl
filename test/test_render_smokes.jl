@@ -82,3 +82,35 @@ using StaticArrays
         rm(tmpfile; force = true)
     end
 end
+
+@testset "Benchmark outcome plots (qjf0)" begin
+    @testset "plot_verdict_shares" begin
+        df = DataFrame(
+            family = ["lv4d", "lv4d", "lv4d", "fhn3d", "fhn3d", "fhn3d"],
+            winner = ["per_axis", "global", "tie", "per_axis", "per_axis", "global"],
+            base_degree = [2, 2, 3, 2, 2, 2],
+            budget = [4, 4, 8, 4, 8, 8],
+        )
+        fig = plot_verdict_shares(df)
+        @test fig isa Figure
+        fig2 = plot_verdict_shares(df; strat_cols = [:budget])
+        @test fig2 isa Figure
+        @test_throws ErrorException plot_verdict_shares(first(df, 0))
+    end
+
+    @testset "plot_predicate_pareto" begin
+        df = DataFrame(
+            trial = ["t1", "t2", "t3", "t4"],
+            mean_evals = [100.0, 200.0, 150.0, 400.0],
+            mean_recovery = [1e-2, 1e-4, 5e-3, 1e-4],
+            pareto_score = [0.5, 0.9, 0.6, 0.4],
+        )
+        fig = plot_predicate_pareto(df; label_col = :trial)
+        @test fig isa Figure
+        # precomputed front column is honored verbatim
+        df.is_pareto = [true, true, false, false]
+        fig2 = plot_predicate_pareto(df; front_col = :is_pareto, score_col = nothing)
+        @test fig2 isa Figure
+        @test_throws ErrorException plot_predicate_pareto(first(df, 0))
+    end
+end
