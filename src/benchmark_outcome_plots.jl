@@ -20,11 +20,8 @@ experiments/sandbox/plot_benchmark_outcomes.jl for the loading side.
 using Printf
 
 const _VERDICT_ORDER = ["per_axis", "global", "tie"]
-const _VERDICT_COLORS = Dict(
-    "per_axis" => :dodgerblue3,
-    "global" => :darkorange2,
-    "tie" => :gray60,
-)
+const _VERDICT_COLORS =
+    Dict("per_axis" => :dodgerblue3, "global" => :darkorange2, "tie" => :gray60)
 
 """
     plot_verdict_shares(df::DataFrame;
@@ -53,10 +50,8 @@ function plot_verdict_shares(
     Label(fig[0, 1:length(families)], title; fontsize = 18, font = :bold)
 
     for (fi, fam) in enumerate(families)
-        sub = df[string.(df[!, family_col]) .== fam, :]
-        strata = sort(
-            unique([Tuple(row[c] for c in strat_cols) for row in eachrow(sub)]),
-        )
+        sub = df[string.(df[!, family_col]).==fam, :]
+        strata = sort(unique([Tuple(row[c] for c in strat_cols) for row in eachrow(sub)]))
         labels = [join(["$(c)=$(v)" for (c, v) in zip(strat_cols, s)], " ") for s in strata]
 
         ax = Axis(
@@ -69,10 +64,7 @@ function plot_verdict_shares(
         )
 
         for (si, s) in enumerate(strata)
-            rows = sub[
-                [Tuple(row[c] for c in strat_cols) == s for row in eachrow(sub)],
-                :,
-            ]
+            rows = sub[[Tuple(row[c] for c in strat_cols) == s for row in eachrow(sub)], :]
             n = nrow(rows)
             y0 = 0.0
             for w in _VERDICT_ORDER
@@ -88,14 +80,7 @@ function plot_verdict_shares(
                 )
                 y0 += share
             end
-            text!(
-                ax,
-                si,
-                1.03;
-                text = "n=$n",
-                align = (:center, :bottom),
-                fontsize = 11,
-            )
+            text!(ax, si, 1.03; text = "n=$n", align = (:center, :bottom), fontsize = 11)
         end
     end
 
@@ -144,19 +129,13 @@ function plot_predicate_pareto(
         # is <= in both coordinates and < in at least one.
         [
             !any(
-                (xs[j] <= xs[i]) & (ys[j] <= ys[i]) &
-                ((xs[j] < xs[i]) | (ys[j] < ys[i])) for j in eachindex(xs)
+                (xs[j] <= xs[i]) & (ys[j] <= ys[i]) & ((xs[j] < xs[i]) | (ys[j] < ys[i])) for j in eachindex(xs)
             ) for i in eachindex(xs)
         ]
     end
 
     fig = Figure(size = (760, 560))
-    ax = Axis(
-        fig[1, 1];
-        title = title,
-        xlabel = string(x_col),
-        ylabel = string(y_col),
-    )
+    ax = Axis(fig[1, 1]; title = title, xlabel = string(x_col), ylabel = string(y_col))
 
     if score_col !== nothing
         sc = scatter!(
@@ -174,14 +153,7 @@ function plot_predicate_pareto(
 
     fidx = sort(findall(on_front); by = i -> xs[i])
     if !isempty(fidx)
-        stairs!(
-            ax,
-            xs[fidx],
-            ys[fidx];
-            step = :post,
-            color = :crimson,
-            linewidth = 2,
-        )
+        stairs!(ax, xs[fidx], ys[fidx]; step = :post, color = :crimson, linewidth = 2)
         scatter!(
             ax,
             xs[fidx],
