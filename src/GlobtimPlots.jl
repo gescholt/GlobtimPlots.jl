@@ -20,6 +20,10 @@ using Reexport
 # Include abstract interfaces
 include("interfaces.jl")
 
+# Shared figure style for the CertifiedParameterEstimation manuscript
+# (paper_theme / paper_figsize; authored-at-true-page-size convention)
+include("paper_theme.jl")
+
 # Include core plotting functionality
 include("analysis_plots.jl")
 include("level_set_viz.jl")  # 3D level set visualization
