@@ -41,6 +41,31 @@ function paper_figsize(fraction::Real = 1.0; aspect::Real = 0.55)
     return (round(Int, w), round(Int, w * aspect))
 end
 
+# The manuscript body is Latin Modern (LaTeX article class); figure text must
+# match it or captions and in-figure labels visibly disagree. Makie's findfont
+# silently substitutes the nearest family for an unknown name, so resolve and
+# verify each face instead of trusting the lookup.
+const PAPER_FONT_FACES = (
+    regular = "Latin Modern Roman",
+    bold = "Latin Modern Roman Bold",
+    italic = "Latin Modern Roman 10 Italic",
+    bold_italic = "Latin Modern Roman 10 Bold Italic",
+)
+
+function paper_fonts()
+    for (slot, name) in pairs(PAPER_FONT_FACES)
+        f = CairoMakie.Makie.to_font(name)
+        occursin("LMRoman", f.family_name) ||
+            occursin("Latin Modern", f.family_name) ||
+            error(
+                "paper_theme: $slot font \"$name\" resolved to " *
+                "\"$(f.family_name)\" — install Latin Modern (TeX Live `lm`) " *
+                "so figure text matches the manuscript body font",
+            )
+    end
+    return PAPER_FONT_FACES
+end
+
 """
     paper_theme(; fontsize = 12) -> Theme
 
@@ -51,6 +76,7 @@ function paper_theme(; fontsize::Real = 12)
     small = round(Int, fontsize * 0.85)   # ticks/legends: ~8 pt on the page
     Theme(
         fontsize = fontsize,
+        fonts = paper_fonts(),
         palette = (color = PAPER_PALETTE,),
         colormap = :viridis,
         Axis = (
