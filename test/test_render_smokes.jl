@@ -1,4 +1,4 @@
-# Render smokes for the most-used GlobtimPlots entry points (bead fjee).
+# Render smokes for the most-used GlobtimPlots entry points.
 #
 # Coverage targets picked by repo-wide call-site count:
 #   cairo_plot_polyapprox_levelset (10 call sites)

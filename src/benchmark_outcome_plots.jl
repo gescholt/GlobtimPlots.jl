@@ -1,5 +1,5 @@
 """
-    Benchmark Outcome Plots (bead qjf0)
+    Benchmark Outcome Plots
 
 Visualization for the experiment-quality metrics that previously lived only as
 JSON/CSV/Markdown tables:
@@ -8,13 +8,13 @@ JSON/CSV/Markdown tables:
   per-axis cut counterfactual campaign (vh7e), stratified across arbitrary
   config columns (family × base_degree × budget × …), one panel per family.
 - `plot_predicate_pareto`: mean_evals vs mean_recovery scatter for predicate
-  threshold sweeps (ehaj.6), Pareto front highlighted, colored by
+  threshold sweeps, Pareto front highlighted, colored by
   pareto_score.
 
 Both functions consume a `DataFrame` the caller assembled from the aggregator
 outputs (verdicts.jsonl rows / analyze_predicate_sweep.jl summary.csv) —
 globtimplots does no file parsing and no statistics; see
-experiments/sandbox/plot_benchmark_outcomes.jl for the loading side.
+the companion sandbox script for the loading side.
 """
 
 using Printf

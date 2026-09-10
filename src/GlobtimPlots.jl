@@ -77,7 +77,7 @@ include("hessian_eigenvalue_plots.jl")
 # Backend-agnostic 3D polynomial approximation surface (core logic; GLMakie extension adds record())
 include("polyapprox_3d.jl")
 
-# Benchmark-outcome plots: counterfactual verdict shares + predicate Pareto (qjf0)
+# Benchmark-outcome plots: counterfactual verdict shares + predicate Pareto
 include("benchmark_outcome_plots.jl")
 
 # Export abstract types
@@ -177,7 +177,7 @@ export plot_capture_convergence, plot_capture_sparsification_combined
 export plot_refinement_trajectories!, RefinementTrajectoryStyle
 
 # Export LV4D plotting functions
-# Export benchmark-outcome plots (qjf0)
+# Export benchmark-outcome plots
 export plot_verdict_shares, plot_predicate_pareto
 
 export plot_lv4d_l2_convergence, plot_lv4d_recovery_convergence
