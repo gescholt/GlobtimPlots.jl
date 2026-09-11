@@ -2,10 +2,10 @@ name: Documentation
 
 on:
   workflow_dispatch:
-  # Auto-triggers disabled until Globtim + GlobtimPostProcessing are
-  # registered on JuliaRegistries/General — GlobtimPlots hard-deps on both,
-  # and the docs build resolves them at instantiate time. Re-enable
-  # push/PR triggers after the full registration wave completes.
+  push:
+    branches: [main]
+    tags: ['*']
+  pull_request:
 
 jobs:
   build:
