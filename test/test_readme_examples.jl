@@ -11,6 +11,8 @@ using Test
 using DataFrames: nrow
 
 const README_PATH = normpath(joinpath(@__DIR__, "..", "README.md"))
+const DOCS_DIR = normpath(joinpath(@__DIR__, "..", "docs"))
+include(joinpath(DOCS_DIR, "tutorial_from_readme.jl"))
 
 "Return the bodies of all ```julia fenced code blocks in `text`, in order."
 function readme_julia_blocks(text::AbstractString)
@@ -57,4 +59,14 @@ end
     @test isdefined(tutorial, :df_cp) && isdefined(tutorial, :results)
     @test nrow(tutorial.df_cp) > 0
     @test tutorial.labels == ["GN=100", "GN=200"]
+end
+
+@testset "docs/src/tutorial.md is in sync with the README" begin
+    # The tracked Tutorial page is generated from the README by docs/make.jl; if the
+    # README changes, rerun `julia --project=docs docs/make.jl` (or write_tutorial_page)
+    # and commit the result.
+    tracked = read(joinpath(DOCS_DIR, "src", "tutorial.md"), String)
+    @test tracked == tutorial_page_from_readme(README_PATH)
+    @test occursin("```@example tutorial", tracked)
+    @test !occursin("```julia\n", tracked)
 end

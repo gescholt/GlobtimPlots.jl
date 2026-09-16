@@ -78,7 +78,7 @@ fig = cairo_plot_polyapprox_levelset(
 save("camel_levelset.png", fig)
 ```
 
-The package README continues this session with the Morse diagnostics, a degree sweep,
-an adaptive subdivision and campaign summaries; those snippets are executed by the test
-suite, so they run as written. The [API Reference](api.md) lists every function with its
-keyword arguments.
+The [Tutorial](tutorial.md) continues this session with the Morse diagnostics, a degree
+sweep, an adaptive subdivision and campaign summaries, with every figure rendered at build
+time; the same code is executed by the test suite. The [API Reference](api.md) lists every
+function with its keyword arguments.
