@@ -4,16 +4,14 @@ using GlobtimPlots
 makedocs(
     sitename = "GlobtimPlots.jl",
     format = Documenter.HTML(
-        prettyurls = false,
-        canonical = "https://gescholt.github.io/globtimplots",
-        analytics = "G-22HWCKE0JK",
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        canonical = "https://gescholt.github.io/GlobtimPlots.jl",
     ),
     pages = [
         "Home" => "index.md",
         "API Reference" => "api.md",
-        "Migration Guide" => "migration.md",
     ],
-    modules = [GlobtimPlots, GlobtimPlots.LV4DPlots],
+    modules = [GlobtimPlots],
 )
 
 deploydocs(

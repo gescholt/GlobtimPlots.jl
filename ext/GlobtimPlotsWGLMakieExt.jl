@@ -1,4 +1,4 @@
-module GlobtimWGLMakieExt
+module GlobtimPlotsWGLMakieExt
 
 using GlobtimPlots
 using WGLMakie
@@ -61,10 +61,6 @@ function GlobtimPlots.plot_polyapprox_3d(
     )
 
     return fig
-end
-
-function __init__()
-    @info "GlobtimPlots: WGLMakie backend loaded — interactive web visualizations available"
 end
 
 end

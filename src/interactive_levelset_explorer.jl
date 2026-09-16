@@ -11,8 +11,6 @@ using Printf
 # ── Log panel helper ─────────────────────────────────────────────────────────
 
 const _LOG_PANEL_MAX_LINES = 15
-const _EXPLORER_LOG_PANEL_WIDTH = 280
-const _EXPLORER_CONTROLS_HEIGHT = 70
 
 # ── Main-thread marshalling channel for Observable updates from @spawn ────────
 # GLMakie requires all Observable mutations to happen on the main thread.

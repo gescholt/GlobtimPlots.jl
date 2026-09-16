@@ -1,8 +1,9 @@
 """
 Level Set Visualization Functions for GlobtimPlots
 
-This module provides 3D level set visualization capabilities.
-These functions use GLMakie for interactive visualizations.
+3D level set visualization (Axis3 scatter of near-level grid points, with a level
+slider). Backend-agnostic Makie code: static under CairoMakie, interactive once
+GLMakie is activated.
 
 LevelSetData and VisualizationParameters types are defined in Globtim
 and re-exported here for convenience.
@@ -642,8 +643,3 @@ function create_level_set_animation(
     @info "Animation saved to: $output_file"
     return fig
 end
-
-# Export functions
-export LevelSetData, VisualizationParameters
-export prepare_level_set_data, to_makie_format, plot_level_set
-export create_level_set_visualization, create_level_set_animation

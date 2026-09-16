@@ -17,10 +17,7 @@ using Dates
         using GlobtimPlots
 
         # Verify GlobtimPlots loaded successfully
-        @test isdefined(GlobtimPlots, :VERSION)
-        @test GlobtimPlots.VERSION isa VersionNumber
-
-        println("✓ Both packages loaded successfully")
+        @test pkgversion(GlobtimPlots) isa VersionNumber
     end
 
     @testset "GlobtimPlots plotting functions work with GlobtimPostProcessing types" begin
@@ -40,7 +37,7 @@ using Dates
             test_cp_df,
             Dict("runtime_seconds" => 10.5),
             nothing,
-            "/tmp/test_exp",
+            joinpath(tempdir(), "test_exp"),
         )
 
         # Verify the type works
@@ -58,36 +55,19 @@ using Dates
         @test campaign isa CampaignResults
         @test length(campaign.experiments) == 1
 
-        # Test that plotting functions are available
-        # (These use duck-typing, so we just check they're exported)
-        @test isdefined(GlobtimPlots, :create_experiment_plots)
-        @test isdefined(GlobtimPlots, :create_campaign_comparison_plot)
-
-        println("✓ GlobtimPlots functions can work with GlobtimPostProcessing types")
-    end
-
-    @testset "GlobtimPlots has GlobtimPostProcessing as dependency" begin
-        using Pkg
-
-        # Get dependencies from GlobtimPlots Project.toml
-        project_path = joinpath(dirname(dirname(@__FILE__)), "Project.toml")
-        @test isfile(project_path)
-
-        project_toml = Pkg.TOML.parsefile(project_path)
-        deps = get(project_toml, "deps", Dict())
-
-        # Verify GlobtimPostProcessing is listed (or that it's using Globtim which includes it)
-        # Currently it depends on Globtim, which is acceptable
-        has_data_source = haskey(deps, "GlobtimPostProcessing") || haskey(deps, "Globtim")
-
-        @test has_data_source
-
-        if haskey(deps, "GlobtimPostProcessing")
-            println("✓ GlobtimPlots directly depends on GlobtimPostProcessing")
-        elseif haskey(deps, "Globtim")
-            println(
-                "✓ GlobtimPlots depends on Globtim (which includes GlobtimPostProcessing)",
-            )
-        end
+        # The campaign plots accept the real ExperimentResult / CampaignResults types
+        stats = Dict(
+            "approximation_quality" =>
+                Dict("degrees" => [3, 4, 5], "l2_errors" => [0.3, 0.1, 0.03]),
+        )
+        @test create_experiment_plots(exp_result, stats; backend = Static) isa Figure
+        # no params_dict in the metadata: labels fall back to positional exp_<i>
+        @test generate_experiment_labels(campaign) == ["exp_1"]
+        campaign_stats = Dict("test_experiment_001" => stats)
+        @test create_campaign_comparison_plot(
+            campaign,
+            campaign_stats;
+            backend = Static,
+        ) isa Figure
     end
 end

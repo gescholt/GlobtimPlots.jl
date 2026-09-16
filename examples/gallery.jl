@@ -1,17 +1,18 @@
 # gallery.jl
 # Regenerate the sample-output gallery used in pkg/globtimplots README and docs.
 #
-# Run with:
-#   julia --project=profiles/viz pkg/globtimplots/examples/gallery.jl
+# Run from any environment that has GlobtimPlots, HomotopyContinuation and
+# DynamicPolynomials (the package's test target does), e.g. from a clone:
+#   julia --project=. -e 'using Pkg; Pkg.add(["HomotopyContinuation", "DynamicPolynomials"])'
+#   julia --project=. examples/gallery.jl
 #
-# Outputs go to pkg/globtimplots/docs/src/assets/gallery_*.png
+# Outputs go to docs/src/assets/gallery_*.png
 
 using Globtim
 using GlobtimPlots
 using CairoMakie
 using DynamicPolynomials: @polyvar
 using HomotopyContinuation
-using Optim
 using LinearAlgebra: eigvals
 
 const ASSET_DIR = abspath(joinpath(@__DIR__, "..", "docs", "src", "assets"))
@@ -23,7 +24,7 @@ println("Writing gallery PNGs to: $ASSET_DIR")
 # 1. Polynomial approximation level-set (Camel 2D, Chebyshev degree 6)
 # ─────────────────────────────────────────────────────────────────────────────
 
-println("\n[1/4] Camel 2D level-set + eigenvalue spectrum …")
+println("\n[1/3] Camel 2D level-set + eigenvalue spectrum …")
 let
     n, scale_factor = 2, 5.0
     f = camel
@@ -102,7 +103,7 @@ end
 # 2. Subdivision partition (Rosenbrock 2D, adaptive isotropic)
 # ─────────────────────────────────────────────────────────────────────────────
 
-println("\n[2/4] Anisotropic 2D subdivision partition …")
+println("\n[2/3] Anisotropic 2D subdivision partition …")
 let
     # Anisotropic test function: high frequency in x_1, low frequency in x_2.
     # Forces subdivision predominantly along x_1, gives a visually distinctive partition.
@@ -138,7 +139,7 @@ end
 # 3. Convergence analysis — Camel CP spread vs degree
 # ─────────────────────────────────────────────────────────────────────────────
 
-println("\n[3/4] Camel degree-sweep — CPs recovered and L2 error vs degree …")
+println("\n[3/3] Camel degree-sweep — CPs recovered and L2 error vs degree …")
 let
     n, scale_factor = 2, 5.0
     f = camel

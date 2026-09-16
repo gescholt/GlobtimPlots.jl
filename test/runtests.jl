@@ -45,12 +45,10 @@ end
 
 @testset "GlobtimPlots.jl" begin
     @testset "Package Loading" begin
-        @test isdefined(GlobtimPlots, :VERSION)
-        @test GlobtimPlots.VERSION isa VersionNumber
-    end
-
-    @testset "Extensions Available" begin
-        @test true  # Placeholder - actual tests would depend on loaded extensions
+        @test pkgversion(GlobtimPlots) isa VersionNumber
+        # The backend extensions are declared but load only with their trigger package
+        @test Base.get_extension(GlobtimPlots, :GlobtimPlotsGLMakieExt) === nothing
+        @test Base.get_extension(GlobtimPlots, :GlobtimPlotsWGLMakieExt) === nothing
     end
 
     @testset "plot_capture_convergence" begin
@@ -477,13 +475,14 @@ end
     end
 end
 
-# NOTE: test_morse_slider.jl was included here but never existed in git —
-# Pkg.test had been failing on the missing file since ≤2026-05. The Morse
-# slider helpers are still unimplemented; re-add its test file
-# together with the implementation.
-
 # Render smokes for the most-used entry points
 include("test_render_smokes.jl")
+
+# GlobtimPostProcessing types flow into the campaign plots
+include("test_postprocessing_integration.jl")
+
+# The README tutorial, extracted and executed from a sandbox directory
+include("test_readme_examples.jl")
 
 # Aqua.jl quality assurance tests
 include("test_aqua.jl")

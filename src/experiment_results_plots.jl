@@ -208,5 +208,3 @@ function plot_experiment_results_static(
     save(output_file, fig, px_per_unit = 2)
     return output_file
 end
-
-export plot_experiment_results_static, plot_experiment_results_interactive

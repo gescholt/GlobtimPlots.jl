@@ -1,5 +1,5 @@
-# Notebook setup for GlobtimPlots examples
-# This file loads the local Globtim package from ../globtim
+# Notebook setup for the GlobtimPlots example notebooks (Camel_2d / Camel_3d).
+# Activates the package environment (../Project.toml) and loads Globtim + GlobtimPlots.
 
 using Pkg
 

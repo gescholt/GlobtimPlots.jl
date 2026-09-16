@@ -1,7 +1,7 @@
 """
-    Plotting.jl
+    CampaignPlotting.jl
 
-Label-aware adaptive plotting for GlobTim experiment results.
+Label-aware adaptive plotting for Globtim experiment results.
 Automatically generates appropriate visualizations based on available tracking labels.
 """
 

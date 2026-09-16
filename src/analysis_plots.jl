@@ -200,28 +200,6 @@ function plot_convergence_analysis(
     return fig
 end
 
-function compute_min_distances(df, df_check)
-    # Initialize array to store minimum distances
-    min_distances = Float64[]
-
-    # For each row in df, find distance to closest point in df_check
-    for i in 1:nrow(df)
-        point = Array(df[i, :])  # Convert row to array
-        min_dist = Inf
-
-        # Compare with each point in df_check
-        for j in 1:nrow(df_check)
-            check_point = Array(df_check[j, :])
-            dist = norm(point - check_point)  # Euclidean distance
-            min_dist = min(min_dist, dist)
-        end
-
-        push!(min_distances, min_dist)
-    end
-
-    return min_distances
-end
-
 """
     cairo_plot_polyapprox_levelset(pol, TR, df, df_min; kwargs...)
 
@@ -435,126 +413,6 @@ function cairo_plot_polyapprox_levelset(
 end
 
 """
-Updated plot_filtered_y_distances function to handle per-coordinate scaling.
-"""
-function plot_filtered_y_distances(
-    df_filtered::DataFrame,
-    TR::AbstractProblemInput,  # Added TR parameter
-    results::Dict{
-        Int,
-        NamedTuple{
-            (:df, :df_min, :convergence_stats, :discrete_l2),
-            Tuple{DataFrame,DataFrame,NamedTuple,Float64},
-        },
-    },
-    start_degree::Int,
-    end_degree::Int,
-    step::Int = 1;
-    use_optimized::Bool = true,
-    show_legend::Bool = true,
-    fig_size::Tuple{Int,Int} = (600, 400),
-)
-    # Filter to only include degrees that succeeded
-    all_degrees = start_degree:step:end_degree
-    degrees = filter(d -> haskey(results, d), all_degrees)
-
-    if isempty(degrees)
-        error("No successful results found for degrees $start_degree:$step:$end_degree")
-    end
-
-    n_dims = count(col -> startswith(string(col), "x"), names(df_filtered))
-    first_degree = first(degrees)
-    n_points = nrow(results[first_degree].df)
-
-    # Filter points that are in the hypercube - use the updated points_in_hypercube function
-    # that handles per-coordinate scaling
-    in_domain = points_in_hypercube(df_filtered, TR, use_y = true)
-    df_in_domain = df_filtered[in_domain, :]
-
-    point_distances = zeros(Float64, n_points, length(degrees))
-
-    for (i, row) in enumerate(eachrow(df_in_domain))  # Changed to df_in_domain
-        # Select either y (optimized) or x (initial) values based on flag
-        point_coords::Vector{Float64} = if use_optimized
-            [row[Symbol("y$j")] for j in 1:n_dims]
-        else
-            [row[Symbol("x$j")] for j in 1:n_dims]
-        end
-
-        # Skip points with NaN coordinates
-        if any(isnan.(point_coords))
-            continue
-        end
-
-        for (d_idx, d) in enumerate(degrees)
-            raw_points = results[d].df
-
-            min_dist::Float64 = Inf
-            for raw_row in eachrow(raw_points)
-                point::Vector{Float64} = [raw_row[Symbol("x$j")] for j in 1:n_dims]
-                dist::Float64 = norm(point_coords - point)
-                min_dist = min(min_dist, dist)
-            end
-            point_distances[i, d_idx] = min_dist
-        end
-    end
-
-    # Filter out NaN values before computing statistics
-    valid_distances = [filter(!isnan, point_distances[:, i]) for i in 1:length(degrees)]
-    max_distances = [maximum(dists) for dists in valid_distances]
-    min_distances = [minimum(dists) for dists in valid_distances]
-    avg_distances = [sum(dists) / length(dists) for dists in valid_distances]
-    overall_avg = sum(sum.(valid_distances)) / sum(length.(valid_distances))
-
-    max_distances::Vector{Float64} =
-        [maximum(point_distances[:, i]) for i in 1:length(degrees)]
-    avg_distances::Vector{Float64} =
-        [sum(point_distances[:, i]) / n_points for i in 1:length(degrees)]
-    min_distances::Vector{Float64} =
-        [minimum(point_distances[:, i]) for i in 1:length(degrees)]
-    overall_avg::Float64 = sum(avg_distances) / length(avg_distances)
-
-    _green = "\e[32m"
-    _bold = "\e[1m"
-    _reset = "\e[0m"
-
-    println("\n$(_green)▶ $(_reset)Distance Statistics:")
-    println(
-        "   $(_bold)Overall maximum distance:$(_reset) $(round(maximum(max_distances), digits=6))",
-    )
-    println(
-        "   $(_bold)Overall minimum distance:$(_reset) $(round(minimum(min_distances), digits=6))",
-    )
-    println("   $(_bold)Overall average distance:$(_reset) $(round(overall_avg, digits=6))")
-
-    println("\n$(_green)▶ $(_reset)Per-degree Analysis:")
-    for (i, d) in enumerate(degrees)
-        println("   $(_bold)Degree $d:$(_reset)")
-        println("      Max distance: $(round(max_distances[i], digits=6))")
-        println("      Min distance: $(round(min_distances[i], digits=6))")
-        println("      Avg distance: $(round(avg_distances[i], digits=6))")
-        println()
-    end
-
-    fig = Figure(size = fig_size)
-
-    point_label = use_optimized ? "Optimized" : "Initial"
-    ax = Axis(
-        fig[1, 1],
-        # title="Distance from Each $point_label Point to Nearest Initial Point",
-        xlabel = "Degree",
-        ylabel = "",
-    )
-
-    scatterlines!(ax, degrees, max_distances, label = "Maximum", color = :red)
-    scatterlines!(ax, degrees, avg_distances, label = "Average", color = :blue)
-
-    # Legend removed per user request
-
-    return fig
-end
-
-"""
 Plot the outputs of`analyze_converged_points` function.
 """
 function plot_distance_statistics(
@@ -602,6 +460,14 @@ function plot_distance_statistics(
     return fig
 end
 
+"""
+    plot_convergence_captured(results, df_check, start_degree, end_degree, step; kwargs...) -> Figure
+
+Distance from the critical points found at each degree to the nearest reference point
+of `df_check` (e.g. known minimizers), as maximum and average against the degree.
+`results` is a `Dict` keyed by degree whose values carry the critical-point frame in
+`.df`; degrees missing from it are skipped.
+"""
 function plot_convergence_captured(
     results,
     df_check,

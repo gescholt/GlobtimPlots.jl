@@ -386,15 +386,6 @@ function get_node_marker(node::SubdomainNodeInfo)
 end
 
 """
-    get_node_size(node::SubdomainNodeInfo, style::TreeVizStyle) -> Float64
-
-Get node size based on type.
-"""
-function get_node_size(node::SubdomainNodeInfo, style::TreeVizStyle)
-    return node.is_leaf ? style.leaf_node_size : style.split_node_size
-end
-
-"""
     split_position_label(split_pos::Float64, width::Int=10) -> String
 
 Create ASCII split position visualization: [----|---------]
