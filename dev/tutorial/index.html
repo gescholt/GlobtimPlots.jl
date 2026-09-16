@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · GlobtimPlots.jl</title><meta name="title" content="Tutorial · GlobtimPlots.jl"/><meta property="og:title" content="Tutorial · GlobtimPlots.jl"/><meta property="twitter:title" content="Tutorial · GlobtimPlots.jl"/><meta name="description" content="Documentation for GlobtimPlots.jl."/><meta property="og:description" content="Documentation for GlobtimPlots.jl."/><meta property="twitter:description" content="Documentation for GlobtimPlots.jl."/><meta property="og:url" content="https://gescholt.github.io/GlobtimPlots.jl/tutorial/"/><meta property="twitter:url" content="https://gescholt.github.io/GlobtimPlots.jl/tutorial/"/><link rel="canonical" href="https://gescholt.github.io/GlobtimPlots.jl/tutorial/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">GlobtimPlots.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Tutorial</a></li><li><a class="tocitem" href="../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/gescholt/GlobtimPlots.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/gescholt/GlobtimPlots.jl/blob/main/docs/src/tutorial.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h1><p><em>Generated from the package README by <code>docs/make.jl</code>; the test suite executes the same code.</em></p><p>The snippets below form one continuous session: later blocks reuse <code>f</code>, <code>TR</code>, <code>x</code>, <code>df_cp</code> and <code>results</code> from the earlier ones. They are extracted from the README and executed by the test suite, so they run as written; the <a href="https://gescholt.github.io/GlobtimPlots.jl/dev/tutorial/">documentation&#39;s Tutorial page</a> is generated from this section and shows the rendered figures.</p><h3 id="Level-set-with-critical-points"><a class="docs-heading-anchor" href="#Level-set-with-critical-points">Level set with critical points</a><a id="Level-set-with-critical-points-1"></a><a class="docs-heading-anchor-permalink" href="#Level-set-with-critical-points" title="Permalink"></a></h3><pre><code class="language-julia hljs">using Globtim, GlobtimPlots
+using DynamicPolynomials: @polyvar
+import HomotopyContinuation  # enables Globtim&#39;s :hc solver (`import`: it also exports a `save`)
+
+# 1. Fit a degree-6 Chebyshev polynomial to the six-hump camel function on [-5, 5]^2
+f  = camel
+TR = TestInput(f; dim = 2, center = [0.0, 0.0], sample_range = 5.0, GN = 200)
+pol = Constructor(TR, 6; basis = :chebyshev, precision = RationalPrecision)
+
+# 2. Critical points of the approximant, refined on f and classified by their Hessian
+@polyvar x[1:2]
+sols = solve_polynomial_system(x, 2, 6, pol.coeffs;
+    basis = pol.basis, precision = pol.precision, normalized = pol.normalized)
+df_cp = process_crit_pts(sols, f, TR)
+df_cp, df_min = analyze_critical_points(f, df_cp, TR; tol_dist = 0.01, verbose = false)
+
+# 3. Level set of the approximant with the critical points overlaid
+fig = cairo_plot_polyapprox_levelset(
+    adapt_polynomial_data(pol), adapt_problem_input(TR), df_cp, df_min;
+    chebyshev_levels = true, title = &quot;Six-hump camel — Chebyshev degree 6&quot;,
+)
+save(&quot;camel_levelset.png&quot;, fig)
+fig   # the Figure is what a notebook (or the docs tutorial) displays</code></pre><img src="546e7e78.png" alt="Example block output"/><p><code>adapt_polynomial_data</code> / <code>adapt_problem_input</code> wrap Globtim&#39;s <code>ApproxPoly</code> and <code>TestInput</code>; the plotting functions only need the <code>AbstractPolynomialData</code> / <code>AbstractProblemInput</code> interface, so any object exposing the same fields (see <code>GenericPolynomialData</code>, <code>GenericProblemInput</code>) can be plotted too.</p><h3 id="Morse-diagnostics"><a class="docs-heading-anchor" href="#Morse-diagnostics">Morse diagnostics</a><a id="Morse-diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Morse-diagnostics" title="Permalink"></a></h3><p><code>analyze_critical_points</code> stores the Hessian classification of every critical point (<code>critical_point_type</code>, extreme eigenvalues, condition number) in <code>df_cp</code>:</p><pre><code class="language-julia hljs">fig_eig  = plot_critical_eigenvalues(df_cp)   # smallest positive / largest negative eigenvalue
+fig_cond = plot_condition_numbers(df_cp)      # κ(H) per critical point, log scale
+fig_norm = plot_hessian_norms(df_cp)          # ‖H‖ per critical point, colored by Morse type
+save(&quot;camel_condition_numbers.png&quot;, fig_cond)
+fig_cond</code></pre><img src="048da0f8.png" alt="Example block output"/><h3 id="Degree-sweep"><a class="docs-heading-anchor" href="#Degree-sweep">Degree sweep</a><a id="Degree-sweep-1"></a><a class="docs-heading-anchor-permalink" href="#Degree-sweep" title="Permalink"></a></h3><p><code>plot_discrete_l2</code> and <code>plot_convergence_analysis</code> take a <code>Dict</code> keyed by degree whose values carry the analyzed critical-point frame (<code>df</code>) and the discrete L2 fit error. The first tracks the fit, the second the spread of the recovered critical points (their nearest-neighbour distances), which stabilizes once the degree resolves the landscape:</p><pre><code class="language-julia hljs">results = Dict{Int,Any}()
+for d in 4:2:10
+    pol_d = Constructor(TR, d; basis = :chebyshev, precision = RationalPrecision)
+    sols_d = solve_polynomial_system(x, 2, d, pol_d.coeffs;
+        basis = pol_d.basis, precision = pol_d.precision, normalized = pol_d.normalized)
+    df_d = process_crit_pts(sols_d, f, TR)
+    df_d, df_min_d = analyze_critical_points(f, df_d, TR; tol_dist = 0.01, verbose = false)
+    results[d] = (df = df_d, df_min = df_min_d, discrete_l2 = pol_d.nrm)
+end
+
+fig_l2   = plot_discrete_l2(results, 4, 10, 2)           # ‖f − p_d‖₂ against the degree d
+fig_conv = plot_convergence_analysis(results, 4, 10, 2)  # max / mean nearest-neighbour distance among the CPs of p_d
+save(&quot;camel_degree_sweep.png&quot;, fig_l2)
+fig_l2</code></pre><img src="ad9679f9.png" alt="Example block output"/><h3 id="Adaptive-subdivision"><a class="docs-heading-anchor" href="#Adaptive-subdivision">Adaptive subdivision</a><a id="Adaptive-subdivision-1"></a><a class="docs-heading-anchor-permalink" href="#Adaptive-subdivision" title="Permalink"></a></h3><p>Globtim&#39;s <code>adaptive_refine</code> splits the domain until every leaf is approximated to tolerance. The tree can be drawn directly, overlaid on the objective, or turned into an approximation-error heatmap:</p><pre><code class="language-julia hljs">g(p) = sin(5 * p[1]) + 0.3 * sin(p[2])       # high frequency along x₁ only
+bounds = [(-2.0, 2.0), (-2.0, 2.0)]
+tree = adaptive_refine(g, bounds, 4;
+    l2_tolerance = 0.005, tolerance_mode = :absolute, max_depth = 6, parallel = false)
+
+print_tree_summary(tree)
+fig_tree = plot_subdivision_tree(tree)
+fig_over = plot_subdivision_on_levelset(tree, g; l2_tolerance = 0.005)
+fig_err  = plot_subdivision_error_heatmap(tree, g)
+
+# The partition can also be drawn from serialized per-leaf data, without the tree object
+leaf_ids    = vcat(tree.converged_leaves, tree.active_leaves)
+leaf_bounds = [[collect(get_bounds(tree.subdomains[i])[k]) for k in 1:2] for i in leaf_ids]
+leaf_l2     = [tree.subdomains[i].l2_error for i in leaf_ids]
+leaf_deg    = [tree.subdomains[i].degree for i in leaf_ids]
+fig_part = plot_subdivision_partition(leaf_bounds, leaf_l2, leaf_deg;
+    l2_tolerance = 0.005, title = &quot;Adaptive partition of sin(5x₁) + 0.3 sin(x₂)&quot;)
+save(&quot;subdivision_partition.png&quot;, fig_part)
+fig_part</code></pre><img src="85c23fc2.png" alt="Example block output"/><h3 id="Experiment-and-campaign-summaries"><a class="docs-heading-anchor" href="#Experiment-and-campaign-summaries">Experiment and campaign summaries</a><a id="Experiment-and-campaign-summaries-1"></a><a class="docs-heading-anchor-permalink" href="#Experiment-and-campaign-summaries" title="Permalink"></a></h3><p><code>create_experiment_plots</code> and <code>create_campaign_comparison_plot</code> summarize the tracked statistics of one experiment or of a campaign of experiments. They are duck-typed: any object with the fields used below works, in particular the <code>ExperimentResult</code> / <code>CampaignResults</code> types of <code>GlobtimPostProcessing</code>.</p><pre><code class="language-julia hljs">degrees   = collect(4:2:10)
+l2_errors = [results[d].discrete_l2 for d in degrees]
+
+# One experiment: which statistics were tracked, and their values
+experiment = (experiment_id = &quot;camel_GN200&quot;, enabled_tracking = [&quot;approximation_quality&quot;])
+stats = Dict(&quot;approximation_quality&quot; =&gt; Dict(&quot;degrees&quot; =&gt; degrees, &quot;l2_errors&quot; =&gt; l2_errors))
+fig_exp = create_experiment_plots(experiment, stats; backend = Static)
+save_plot(fig_exp, &quot;camel_experiment.png&quot;)
+
+# A campaign: several experiments, labelled automatically by the parameters that differ
+coarse = (experiment_id = &quot;camel_GN100&quot;, metadata = Dict(&quot;params_dict&quot; =&gt; Dict(&quot;GN&quot; =&gt; 100)))
+fine   = (experiment_id = &quot;camel_GN200&quot;, metadata = Dict(&quot;params_dict&quot; =&gt; Dict(&quot;GN&quot; =&gt; 200)))
+campaign = (campaign_id = &quot;camel_degree_sweep&quot;, experiments = [coarse, fine])
+campaign_stats = Dict(
+    &quot;camel_GN100&quot; =&gt; Dict(&quot;approximation_quality&quot; =&gt; Dict(&quot;degrees&quot; =&gt; degrees, &quot;l2_errors&quot; =&gt; 2 .* l2_errors)),
+    &quot;camel_GN200&quot; =&gt; stats,
+)
+labels  = generate_experiment_labels(campaign)      # [&quot;GN=100&quot;, &quot;GN=200&quot;]
+fig_cmp = create_campaign_comparison_plot(campaign, campaign_stats; backend = Static)
+save_plot(fig_cmp, &quot;camel_campaign.png&quot;)
+fig_cmp</code></pre><img src="f8eb64b9.png" alt="Example block output"/><h3 id="Interactive-3D-surface"><a class="docs-heading-anchor" href="#Interactive-3D-surface">Interactive 3D surface</a><a id="Interactive-3D-surface-1"></a><a class="docs-heading-anchor-permalink" href="#Interactive-3D-surface" title="Permalink"></a></h3><p><code>plot_polyapprox_3d</code> draws the approximant as a surface with the critical points on it. It lives in the GLMakie extension, so load that backend first:</p><pre><code class="language-julia-repl hljs">julia&gt; using GLMakie
+
+julia&gt; plot_polyapprox_3d(adapt_polynomial_data(pol), adapt_problem_input(TR), df_cp, df_min)
+
+julia&gt; plot_polyapprox_3d(adapt_polynomial_data(pol), adapt_problem_input(TR), df_cp, df_min;
+                          rotate = true, filename = &quot;camel_rotation.mp4&quot;)   # records a turntable animation</code></pre><p><code>interactive_error_explorer(tree, g)</code> and <code>interactive_levelset_explorer</code> are the click-to-zoom / click-to-optimize counterparts of the subdivision plots, and also need GLMakie.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Wednesday 16 September 2026 23:50">Wednesday 16 September 2026</span>. Using Julia version 1.13.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
