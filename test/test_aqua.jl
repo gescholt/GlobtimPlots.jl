@@ -30,9 +30,18 @@ using GlobtimPlots
     # 2026-08-13 (failed with a formatter running alongside, passed on an idle
     # machine, same commit). A genuine persistent task never exits, so a longer
     # budget costs nothing on the happy path and removes the false positive.
+    #
+    # persistent_tasks is skipped when the test process runs with code coverage
+    # (julia-runtest's default on CI). Aqua spawns its subprocess with
+    # Base.julia_cmd(), which carries --code-coverage along, so the wrapper
+    # package's precompilation cannot reuse any cache and rebuilds the whole
+    # Makie stack a second time inside the test (12 min on GitHub runners on
+    # 2026-09-16, ending in a silently killed process on all three OSes). The
+    # check still runs under a plain `Pkg.test` / `pkg> test GlobtimPlots`.
+    coverage_on = Base.JLOptions().code_coverage != 0
     Aqua.test_all(
         GlobtimPlots;
         undefined_exports = false,
-        persistent_tasks = (; tmax = 180),
+        persistent_tasks = coverage_on ? false : (; tmax = 180),
     )
 end
