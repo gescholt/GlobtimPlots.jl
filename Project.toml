@@ -1,8 +1,8 @@
 name = "GlobtimPlots"
 uuid = "dce1bbde-eed0-4d20-b978-1e0da4aec0e5"
+license = "MIT"
 version = "0.2.0"
 authors = ["Georgy Scholten <scholtengeorgy@gmail.com>"]
-license = "MIT"
 repo = "https://github.com/gescholt/GlobtimPlots.jl"
 
 [deps]
@@ -38,13 +38,12 @@ GlobtimWGLMakieExt = "WGLMakie"
 
 [compat]
 Aqua = "0.8, 0.9"
-CSV = "0.10"
+CSV = "0.10, 1"
 CairoMakie = "0.10, 0.11, 0.12, 0.13, 0.14, 0.15"
 ColorSchemes = "3"
 DataFrames = "1.6"
 DynamicPolynomials = "0.6"
 GLMakie = "0.8, 0.9, 0.10, 0.11, 0.12, 0.13"
-WGLMakie = "0.10, 0.11"
 GeometryBasics = "0.4, 0.5"
 Globtim = "1, 2"
 GlobtimPostProcessing = "0.1"
@@ -61,6 +60,7 @@ Reexport = "1.2"
 StaticArrays = "1"
 Statistics = "1"
 Test = "1"
+WGLMakie = "0.10, 0.11"
 julia = "1.12"
 
 [extras]
