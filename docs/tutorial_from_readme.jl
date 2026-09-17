@@ -6,6 +6,14 @@
 # checks that the tracked copy is in sync with the README.
 
 """
+    read_lf(path) -> String
+
+Read a text file with line endings normalized to `\\n`. Git on Windows checks the
+Markdown sources out with CRLF, and the fence patterns below are written against `\\n`.
+"""
+read_lf(path::AbstractString) = replace(read(path, String), "\r\n" => "\n")
+
+"""
     tutorial_page_from_readme(readme_path) -> String
 
 The Markdown of the docs Tutorial page: the README's `## Tutorial` section (up to
@@ -13,7 +21,7 @@ The Markdown of the docs Tutorial page: the README's `## Tutorial` section (up t
 block. ```julia-repl fences (GLMakie, Pkg mode) are left as documentation.
 """
 function tutorial_page_from_readme(readme_path::AbstractString)
-    readme = read(readme_path, String)
+    readme = read_lf(readme_path)
     a = findfirst("## Tutorial\n", readme)
     b = findfirst("## Function index", readme)
     (a === nothing || b === nothing) && error("$readme_path: Tutorial section not found")

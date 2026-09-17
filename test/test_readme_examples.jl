@@ -28,7 +28,7 @@ function readme_saved_files(text::AbstractString)
 end
 
 @testset "README tutorial runs as written" begin
-    readme = read(README_PATH, String)
+    readme = read_lf(README_PATH)   # CRLF checkouts (Windows) must extract the same blocks
     blocks = readme_julia_blocks(readme)
     @test length(blocks) >= 5
 
@@ -65,7 +65,7 @@ end
     # The tracked Tutorial page is generated from the README by docs/make.jl; if the
     # README changes, rerun `julia --project=docs docs/make.jl` (or write_tutorial_page)
     # and commit the result.
-    tracked = read(joinpath(DOCS_DIR, "src", "tutorial.md"), String)
+    tracked = read_lf(joinpath(DOCS_DIR, "src", "tutorial.md"))
     @test tracked == tutorial_page_from_readme(README_PATH)
     @test occursin("```@example tutorial", tracked)
     @test !occursin("```julia\n", tracked)
