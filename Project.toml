@@ -33,7 +33,10 @@ GlobtimPlotsGLMakieExt = "GLMakie"
 GlobtimPlotsWGLMakieExt = "WGLMakie"
 
 [compat]
-Aqua = "0.8, 0.9"
+# Aqua 0.8.17+ test_persistent_tasks mirrors the test manifest and errors on any
+# dependency lacking a Project.toml: TreeViews 0.3.0 (via HomotopyContinuation)
+# ships only a REQUIRE file. Pinned 2026-09-17; lift once upstream tolerates it.
+Aqua = "0.8.0 - 0.8.16"
 CairoMakie = "0.10, 0.11, 0.12, 0.13, 0.14, 0.15"
 ColorSchemes = "3"
 DataFrames = "1.6"
