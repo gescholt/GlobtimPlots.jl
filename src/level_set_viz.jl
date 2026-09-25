@@ -1042,3 +1042,94 @@ function create_sublevel_animation(
     @info "Sublevel animation saved to: $output_file"
     return fig
 end
+
+# ── parameter-sweep animation (one grid per parameter value, fixed level) ─────
+
+"""
+    create_level_set_sweep_animation(frames, grid, level, params = VisualizationParameters();
+        frame_overlays = nothing, frame_labels = nothing, substeps = 8, fps = 30,
+        output_file = "level_set_sweep.mp4", title = "", axis_labels = ("x₁", "x₂", "x₃"),
+        level_markersize = 2, rotate = true) -> Figure
+
+Animate a family of functions on one grid, e.g. slices f(·; t) of a higher-dimensional
+objective at parameter values t₁ < … < t_K, at the fixed `level`. `frames[j]` holds the
+values of the j-th member on `grid`. Between consecutive members the values are
+interpolated linearly in `substeps` steps, so the level shell moves continuously.
+`frame_overlays[j]` (overlay vectors as in `create_level_set_visualization`, the same
+sources in the same order in every frame) is drawn
+while frame j is the nearest member, so critical points appear and vanish where the
+family has a fold. `params.point_window` decides which overlay points are shown
+(use a large window to show them all). `frame_labels[j]` is shown under the axis.
+"""
+function create_level_set_sweep_animation(
+    frames::AbstractVector{<:Array{T,3}},
+    grid::Array{SVector{3,T},3},
+    level::Real,
+    params::VisualizationParameters{T} = VisualizationParameters{T}();
+    frame_overlays = nothing,
+    frame_labels = nothing,
+    substeps::Int = 8,
+    fps::Int = 30,
+    output_file::String = "level_set_sweep.mp4",
+    title::AbstractString = "",
+    axis_labels = ("x₁", "x₂", "x₃"),
+    level_markersize::Real = 2,
+    rotate::Bool = true,
+) where {T<:AbstractFloat}
+    K = length(frames)
+    K >= 1 || throw(ArgumentError("frames is empty"))
+    all(size(F) == size(grid) for F in frames) ||
+        throw(DimensionMismatch("every frame must have the grid's shape $(size(grid))"))
+    frame_overlays === nothing || length(frame_overlays) == K ||
+        throw(ArgumentError("frame_overlays needs one entry per frame ($K)"))
+    frame_labels === nothing || length(frame_labels) == K ||
+        throw(ArgumentError("frame_labels needs one entry per frame ($K)"))
+    substeps >= 1 || throw(ArgumentError("substeps must be ≥ 1"))
+
+    grid_points = vec(grid)
+    fig = Figure(size = params.fig_size)
+    ax = Axis3(fig[1, 1], title = title, xlabel = axis_labels[1], ylabel = axis_labels[2],
+        zlabel = axis_labels[3])
+    limits!(ax, extrema(p[1] for p in grid_points)..., extrema(p[2] for p in grid_points)...,
+        extrema(p[3] for p in grid_points)...)
+    shell = Observable(Point3f[])
+    scatter!(ax, shell; color = :blue, markersize = level_markersize)
+    # one set of overlay layers per frame, all built up front; the inactive ones are emptied
+    layer_sets = frame_overlays === nothing ? [] : [_overlay_layers(ax, ov) for ov in frame_overlays]
+    if frame_overlays !== nothing
+        # legend: the sources of the first frame (every frame has the same sources),
+        # with the Morse indices pooled over all frames
+        first_ov = frame_overlays[1]
+        pooled = [merge(first_ov[i], (; df = reduce(vcat, [ov[i].df for ov in frame_overlays if length(ov) >= i])))
+                  for i in eachindex(first_ov)]
+        _overlay_legend!(fig[1, 2], pooled)
+    end
+    info = Observable("")
+    Label(fig[2, 1], info, tellwidth = false)
+
+    tol = params.point_tolerance
+    steps = [(j, a) for j in 1:max(K - 1, 1) for a in range(0, 1; length = substeps + 1)[1:end-1]]
+    K > 1 && push!(steps, (K - 1, 1.0))
+    theta = range(0, pi, length = length(steps))
+    record(fig, output_file, eachindex(steps); framerate = fps) do s
+        j, a = steps[s]
+        A = frames[j]
+        B = K > 1 ? frames[j+1] : frames[j]
+        pts = Point3f[]
+        for v in eachindex(A)
+            x = (1 - a) * A[v] + a * B[v]
+            (isfinite(x) && abs(x - level) <= tol) || continue
+            p = grid_points[v]
+            push!(pts, Point3f(p[1], p[2], p[3]))
+        end
+        shell[] = pts
+        near = K > 1 && a >= 0.5 ? j + 1 : j
+        for (m, layers) in enumerate(layer_sets)
+            _update_overlays!(layers, level, m == near ? params.point_window : -one(T))
+        end
+        frame_labels === nothing || (info[] = frame_labels[near])
+        rotate && (ax.azimuth[] = theta[s])
+    end
+    @info "Sweep animation saved to: $output_file"
+    return fig
+end

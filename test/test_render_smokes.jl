@@ -103,6 +103,25 @@ using StaticArrays
         @test 0.2 <= young.death <= 0.3
     end
 
+    @testset "create_level_set_sweep_animation (a fold: two critical points appear)" begin
+        n = 9
+        xs = range(-1.0, 1.0; length = n)
+        grid = [SVector{3,Float64}(x, y, z) for x in xs, y in xs, z in xs]
+        ts = (-0.3, 0.0, 0.3)
+        frames = [[p[1]^3 - t * p[1] + p[2]^2 + p[3]^2 for p in grid] for t in ts]
+        cps(t) = t <= 0 ? DataFrame(x1 = Float64[], x2 = Float64[], x3 = Float64[], z = Float64[], index = Int[]) :
+                 DataFrame(x1 = [-sqrt(t / 3), sqrt(t / 3)], x2 = [0.0, 0.0], x3 = [0.0, 0.0], z = [0.0, 0.0], index = [1, 0])
+        ov = [[(; df = cps(t), label = "critical points")] for t in ts]
+        mp4 = tempname() * ".mp4"
+        fig = create_level_set_sweep_animation(frames, grid, 0.2,
+            VisualizationParameters(point_tolerance = 0.05, point_window = 1e9);
+            frame_overlays = ov, frame_labels = ["t = $t" for t in ts], substeps = 2, fps = 4, output_file = mp4)
+        @test fig isa Figure
+        @test isfile(mp4) && filesize(mp4) > 0
+        rm(mp4; force = true)
+        @test_throws ArgumentError create_level_set_sweep_animation(frames, grid, 0.2; frame_labels = ["a"])
+    end
+
     @testset "create_experiment_plots (Static backend)" begin
         result =
             (experiment_id = "render_smoke", enabled_tracking = ["approximation_quality"])
