@@ -528,7 +528,8 @@ Same as the `f`-based overload, but skips function evaluation — uses the provi
 A vector of `(; df, label, marker = :circle, markersize = 16, color)`, where `df` has
 columns x1, x2, x3, z on the scale of `values`, and optionally `index`, in which case
 the points are coloured by Morse index. Sources and indices get a legend at
-`fig[1, 2]`. `title` and `axis_labels` label the `Axis3`.
+`fig[1, 2]`. `title` and `axis_labels` label the `Axis3`; `level_markersize` sets
+the size of the level-set points (default 6 here, 2 in the animation).
 
 `Inf` and `NaN` entries in `values` are treated as missing (excluded from level sets).
 """
@@ -541,6 +542,7 @@ function create_level_set_visualization(
     overlays = nothing,
     title::AbstractString = "",
     axis_labels = ("x₁", "x₂", "x₃"),
+    level_markersize::Real = 6,
 ) where {T<:AbstractFloat}
     size(grid) == size(values) ||
         throw(DimensionMismatch("Grid shape $(size(grid)) != values shape $(size(values))"))
@@ -586,7 +588,7 @@ function create_level_set_visualization(
         ax,
         level_points,
         color = :blue,
-        markersize = 6,
+        markersize = level_markersize,
         alpha = 0.7,
         label = "Level Set",
     )
@@ -672,7 +674,8 @@ Same as the `f`-based overload, but skips function evaluation — uses the provi
 A vector of `(; df, label, marker = :circle, markersize = 16, color)`, where `df` has
 columns x1, x2, x3, z on the scale of `values`, and optionally `index`, in which case
 the points are coloured by Morse index. Sources and indices get a legend at
-`fig[1, 2]`. `title` and `axis_labels` label the `Axis3`.
+`fig[1, 2]`. `title` and `axis_labels` label the `Axis3`; `level_markersize` sets
+the size of the level-set points (default 6 here, 2 in the animation).
 """
 function create_level_set_animation(
     values::Array{T},
@@ -686,6 +689,7 @@ function create_level_set_animation(
     overlays = nothing,
     title::AbstractString = "Level Set Visualization",
     axis_labels = ("x₁", "x₂", "x₃"),
+    level_markersize::Real = 2,
     level_label::Bool = overlays !== nothing,
 ) where {T<:AbstractFloat}
     size(grid) == size(values) ||
@@ -719,7 +723,7 @@ function create_level_set_animation(
     level_points = Observable(Point3f[])
     data_points = Observable(Point3f[])
 
-    scatter!(ax, level_points, color = :blue, markersize = 2, label = "Level Set")
+    scatter!(ax, level_points, color = :blue, markersize = level_markersize, label = "Level Set")
 
     if !isnothing(df)
         scatter!(
