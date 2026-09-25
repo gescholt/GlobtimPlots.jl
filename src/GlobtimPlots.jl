@@ -110,7 +110,9 @@ export generate_experiment_labels
 export LevelSetData, VisualizationParameters
 export prepare_level_set_data, to_makie_format, plot_level_set
 export create_level_set_visualization,
-    create_level_set_animation, create_sublevel_animation, sublevel_barcode,
+    create_level_set_animation,
+    create_sublevel_animation,
+    sublevel_barcode,
     create_level_set_sweep_animation
 
 # Utility functions

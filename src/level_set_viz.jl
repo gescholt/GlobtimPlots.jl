@@ -1080,35 +1080,58 @@ function create_level_set_sweep_animation(
     K >= 1 || throw(ArgumentError("frames is empty"))
     all(size(F) == size(grid) for F in frames) ||
         throw(DimensionMismatch("every frame must have the grid's shape $(size(grid))"))
-    frame_overlays === nothing || length(frame_overlays) == K ||
+    frame_overlays === nothing ||
+        length(frame_overlays) == K ||
         throw(ArgumentError("frame_overlays needs one entry per frame ($K)"))
-    frame_labels === nothing || length(frame_labels) == K ||
+    frame_labels === nothing ||
+        length(frame_labels) == K ||
         throw(ArgumentError("frame_labels needs one entry per frame ($K)"))
     substeps >= 1 || throw(ArgumentError("substeps must be ≥ 1"))
 
     grid_points = vec(grid)
     fig = Figure(size = params.fig_size)
-    ax = Axis3(fig[1, 1], title = title, xlabel = axis_labels[1], ylabel = axis_labels[2],
-        zlabel = axis_labels[3])
-    limits!(ax, extrema(p[1] for p in grid_points)..., extrema(p[2] for p in grid_points)...,
-        extrema(p[3] for p in grid_points)...)
+    ax = Axis3(
+        fig[1, 1],
+        title = title,
+        xlabel = axis_labels[1],
+        ylabel = axis_labels[2],
+        zlabel = axis_labels[3],
+    )
+    limits!(
+        ax,
+        extrema(p[1] for p in grid_points)...,
+        extrema(p[2] for p in grid_points)...,
+        extrema(p[3] for p in grid_points)...,
+    )
     shell = Observable(Point3f[])
     scatter!(ax, shell; color = :blue, markersize = level_markersize)
     # one set of overlay layers per frame, all built up front; the inactive ones are emptied
-    layer_sets = frame_overlays === nothing ? [] : [_overlay_layers(ax, ov) for ov in frame_overlays]
+    layer_sets =
+        frame_overlays === nothing ? [] : [_overlay_layers(ax, ov) for ov in frame_overlays]
     if frame_overlays !== nothing
         # legend: the sources of the first frame (every frame has the same sources),
         # with the Morse indices pooled over all frames
         first_ov = frame_overlays[1]
-        pooled = [merge(first_ov[i], (; df = reduce(vcat, [ov[i].df for ov in frame_overlays if length(ov) >= i])))
-                  for i in eachindex(first_ov)]
+        pooled = [
+            merge(
+                first_ov[i],
+                (;
+                    df = reduce(
+                        vcat,
+                        [ov[i].df for ov in frame_overlays if length(ov) >= i],
+                    )
+                ),
+            ) for i in eachindex(first_ov)
+        ]
         _overlay_legend!(fig[1, 2], pooled)
     end
     info = Observable("")
     Label(fig[2, 1], info, tellwidth = false)
 
     tol = params.point_tolerance
-    steps = [(j, a) for j in 1:max(K - 1, 1) for a in range(0, 1; length = substeps + 1)[1:end-1]]
+    steps = [
+        (j, a) for j in 1:max(K - 1, 1) for a in range(0, 1; length = substeps + 1)[1:end-1]
+    ]
     K > 1 && push!(steps, (K - 1, 1.0))
     theta = range(0, pi, length = length(steps))
     record(fig, output_file, eachindex(steps); framerate = fps) do s
