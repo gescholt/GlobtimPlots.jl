@@ -809,9 +809,18 @@ function sublevel_barcode(values::AbstractArray{<:Real,3})
     LI = LinearIndices(dims)
     CI = CartesianIndices(dims)
     parent = zeros(Int, N)
-    offs = (CartesianIndex(1, 0, 0), CartesianIndex(-1, 0, 0), CartesianIndex(0, 1, 0),
-        CartesianIndex(0, -1, 0), CartesianIndex(0, 0, 1), CartesianIndex(0, 0, -1))
-    findroot(i) = (while parent[i] != i; parent[i] = parent[parent[i]]; i = parent[i]; end; i)
+    offs = (
+        CartesianIndex(1, 0, 0),
+        CartesianIndex(-1, 0, 0),
+        CartesianIndex(0, 1, 0),
+        CartesianIndex(0, -1, 0),
+        CartesianIndex(0, 0, 1),
+        CartesianIndex(0, 0, -1),
+    )
+    findroot(i) = (while parent[i] != i
+        parent[i] = parent[parent[i]]
+        i = parent[i]
+    end; i)
     death = Dict{Int,Float64}()
     for v in sortperm(vec(values))
         isfinite(values[v]) || continue
@@ -835,8 +844,20 @@ function sublevel_barcode(values::AbstractArray{<:Real,3})
     return sort(bars; by = b -> b.birth)
 end
 
-const COMPONENT_PALETTE = (:royalblue, :darkorange, :forestgreen, :crimson, :purple, :saddlebrown,
-    :deeppink, :gray40, :olive, :teal, :gold, :navy)
+const COMPONENT_PALETTE = (
+    :royalblue,
+    :darkorange,
+    :forestgreen,
+    :crimson,
+    :purple,
+    :saddlebrown,
+    :deeppink,
+    :gray40,
+    :olive,
+    :teal,
+    :gold,
+    :navy,
+)
 
 """
     create_sublevel_animation(values, grid, z_range, params = VisualizationParameters();
@@ -892,8 +913,14 @@ function create_sublevel_animation(
         end
         return i
     end
-    offs = (CartesianIndex(1, 0, 0), CartesianIndex(-1, 0, 0), CartesianIndex(0, 1, 0),
-        CartesianIndex(0, -1, 0), CartesianIndex(0, 0, 1), CartesianIndex(0, 0, -1))
+    offs = (
+        CartesianIndex(1, 0, 0),
+        CartesianIndex(-1, 0, 0),
+        CartesianIndex(0, 1, 0),
+        CartesianIndex(0, -1, 0),
+        CartesianIndex(0, 0, 1),
+        CartesianIndex(0, 0, -1),
+    )
     ptr = Ref(1)
     function grow_to!(c)
         while ptr[] <= N && values[order[ptr[]]] <= c
@@ -925,10 +952,19 @@ function create_sublevel_animation(
     rank = Dict(b.argmin => k for (k, b) in enumerate(allbars))
     grid_points = vec(grid)
     fig = Figure(size = params.fig_size)
-    ax = Axis3(fig[1, 1], title = title, xlabel = axis_labels[1], ylabel = axis_labels[2],
-        zlabel = axis_labels[3])
-    limits!(ax, extrema(p[1] for p in grid_points)..., extrema(p[2] for p in grid_points)...,
-        extrema(p[3] for p in grid_points)...)
+    ax = Axis3(
+        fig[1, 1],
+        title = title,
+        xlabel = axis_labels[1],
+        ylabel = axis_labels[2],
+        zlabel = axis_labels[3],
+    )
+    limits!(
+        ax,
+        extrema(p[1] for p in grid_points)...,
+        extrema(p[2] for p in grid_points)...,
+        extrema(p[3] for p in grid_points)...,
+    )
     P = length(COMPONENT_PALETTE)
     slots = [Observable(Point3f[]) for _ in 1:P]
     for (k, obs) in enumerate(slots)
@@ -943,13 +979,27 @@ function create_sublevel_animation(
     # (elder rule), bars of persistence < min_persistence dropped; a cursor at c
     cursor = Observable(z_min)
     if barcode
-        bars = [b for b in allbars if b.birth <= z_max && min(b.death, z_max) - b.birth >= min_persistence]
-        bx = Axis(fig[3, 1], xlabel = "level", ylabel = "component", height = 140,
-            yticksvisible = false, yticklabelsvisible = false)
+        bars = [
+            b for b in allbars if
+            b.birth <= z_max && min(b.death, z_max) - b.birth >= min_persistence
+        ]
+        bx = Axis(
+            fig[3, 1],
+            xlabel = "level",
+            ylabel = "component",
+            height = 140,
+            yticksvisible = false,
+            yticklabelsvisible = false,
+        )
         xlims!(bx, z_min, z_max)
         for (k, b) in enumerate(bars)
-            lines!(bx, [b.birth, min(b.death, z_max)], [k, k];
-                color = COMPONENT_PALETTE[mod1(rank[b.argmin], length(COMPONENT_PALETTE))], linewidth = 4)
+            lines!(
+                bx,
+                [b.birth, min(b.death, z_max)],
+                [k, k];
+                color = COMPONENT_PALETTE[mod1(rank[b.argmin], length(COMPONENT_PALETTE))],
+                linewidth = 4,
+            )
         end
         isempty(bars) || ylims!(bx, 0, length(bars) + 1)
         vlines!(bx, cursor; color = :black, linewidth = 1)
@@ -970,7 +1020,12 @@ function create_sublevel_animation(
             slots[k][] = buckets[k]
         end
         _update_overlays!(layers, c, params.point_window)
-        info[] = string("level ", round(c, digits = 3), "    components of {f ≤ level}: ", ncomp[])
+        info[] = string(
+            "level ",
+            round(c, digits = 3),
+            "    components of {f ≤ level}: ",
+            ncomp[],
+        )
         cursor[] = c
     end
 
