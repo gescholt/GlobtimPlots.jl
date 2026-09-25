@@ -723,7 +723,13 @@ function create_level_set_animation(
     level_points = Observable(Point3f[])
     data_points = Observable(Point3f[])
 
-    scatter!(ax, level_points, color = :blue, markersize = level_markersize, label = "Level Set")
+    scatter!(
+        ax,
+        level_points,
+        color = :blue,
+        markersize = level_markersize,
+        label = "Level Set",
+    )
 
     if !isnothing(df)
         scatter!(
