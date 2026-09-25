@@ -817,10 +817,13 @@ function sublevel_barcode(values::AbstractArray{<:Real,3})
         CartesianIndex(0, 0, 1),
         CartesianIndex(0, 0, -1),
     )
-    findroot(i) = (while parent[i] != i
-        parent[i] = parent[parent[i]]
-        i = parent[i]
-    end; i)
+    function findroot(i)
+        while parent[i] != i
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        end
+        return i
+    end
     death = Dict{Int,Float64}()
     for v in sortperm(vec(values))
         isfinite(values[v]) || continue
