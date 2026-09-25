@@ -83,6 +83,26 @@ using StaticArrays
             overlays = [(; df = DataFrame(x1 = [0.0]), label = "bad")])
     end
 
+    @testset "create_sublevel_animation (two wells merging)" begin
+        n = 11
+        xs = range(-1.0, 1.0; length = n)
+        grid = [SVector{3,Float64}(x, y, z) for x in xs, y in xs, z in xs]
+        vals = [(p[1]^2 - 0.5)^2 + p[2]^2 + p[3]^2 for p in grid]
+        saddle = DataFrame(x1 = [0.0], x2 = [0.0], x3 = [0.0], z = [0.25], index = [1])
+        mp4 = tempname() * ".mp4"
+        fig = create_sublevel_animation(vals, grid, (0.0, 0.6); fps = 2, duration = 2,
+            output_file = mp4, overlays = [(; df = saddle, label = "saddle")])
+        @test fig isa Figure
+        @test isfile(mp4) && filesize(mp4) > 0
+        rm(mp4; force = true)
+        # two wells at x₁ = ±√0.5 (value 0) merging at the saddle (value 0.25 on the grid)
+        bars = sublevel_barcode(vals)
+        @test length(bars) == 2
+        @test count(b -> isinf(b.death), bars) == 1
+        young = only(filter(b -> isfinite(b.death), bars))
+        @test 0.2 <= young.death <= 0.3
+    end
+
     @testset "create_experiment_plots (Static backend)" begin
         result =
             (experiment_id = "render_smoke", enabled_tracking = ["approximation_quality"])

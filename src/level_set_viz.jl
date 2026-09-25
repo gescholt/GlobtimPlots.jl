@@ -790,3 +790,197 @@ function create_level_set_animation(
     @info "Animation saved to: $output_file"
     return fig
 end
+
+# ── sublevel-set animation (H₀ merge tree on the grid) ─────────────────────────
+
+"""
+    sublevel_barcode(values::AbstractArray{<:Real,3}) -> Vector{NamedTuple}
+
+The H₀ barcode of the sublevel filtration of `values` on its grid (6-neighbourhood):
+one `(; birth, death, argmin)` per connected component that ever appears, where
+`birth` is its minimum value, `argmin` the linear index of that minimum, and `death`
+the value at which it merges into a component with a lower minimum (elder rule);
+the component of the global minimum has `death = Inf`. Non-finite values are skipped.
+Sorted by birth.
+"""
+function sublevel_barcode(values::AbstractArray{<:Real,3})
+    dims = size(values)
+    N = length(values)
+    LI = LinearIndices(dims)
+    CI = CartesianIndices(dims)
+    parent = zeros(Int, N)
+    offs = (CartesianIndex(1, 0, 0), CartesianIndex(-1, 0, 0), CartesianIndex(0, 1, 0),
+        CartesianIndex(0, -1, 0), CartesianIndex(0, 0, 1), CartesianIndex(0, 0, -1))
+    findroot(i) = (while parent[i] != i; parent[i] = parent[parent[i]]; i = parent[i]; end; i)
+    death = Dict{Int,Float64}()
+    for v in sortperm(vec(values))
+        isfinite(values[v]) || continue
+        parent[v] = v
+        for o in offs
+            u = CI[v] + o
+            checkbounds(Bool, values, u) || continue
+            ui = LI[u]
+            parent[ui] == 0 && continue
+            ru, rv = findroot(ui), findroot(v)
+            ru == rv && continue
+            # roots are the components' minima: the higher one dies here
+            old, young = values[ru] <= values[rv] ? (ru, rv) : (rv, ru)
+            parent[young] = old
+            young == v || (death[young] = Float64(values[v]))
+        end
+    end
+    roots = [v for v in 1:N if parent[v] == v]      # surviving components (normally one)
+    bars = [(; birth = Float64(values[k]), death = d, argmin = k) for (k, d) in death]
+    append!(bars, [(; birth = Float64(values[k]), death = Inf, argmin = k) for k in roots])
+    return sort(bars; by = b -> b.birth)
+end
+
+const COMPONENT_PALETTE = (:royalblue, :darkorange, :forestgreen, :crimson, :purple, :saddlebrown,
+    :deeppink, :gray40, :olive, :teal, :gold, :navy)
+
+"""
+    create_sublevel_animation(values, grid, z_range, params = VisualizationParameters();
+        overlays = nothing, fps = 30, duration = 20, output_file = "sublevel_animation.mp4",
+        title = "Sublevel sets", axis_labels = ("x₁", "x₂", "x₃"), level_markersize = 2,
+        rotate = true) -> Figure
+
+Animate the sublevel sets {values ≤ c} as c sweeps `z_range`. The sets are grown by
+union–find over the grid's 6-neighbourhood (the H₀ merge tree), so each connected
+component is known at every level. The boundary shell
+(c − `params.point_tolerance` ≤ values ≤ c) is drawn in the colour of its
+component. A component's colour is fixed by the rank of its minimum, and when two
+components merge the one with the lower minimum keeps its colour (elder rule), so a
+merge shows as one colour swallowing another. The number of components is shown
+under the axis and, with `barcode = true`, the H₀ barcode (`sublevel_barcode`, bars
+shorter than `min_persistence` dropped) with a cursor at c.
+`overlays` are as in `create_level_set_visualization` (drawn within
+`params.point_window` of c): saddles of index 1 light up at the merge levels.
+"""
+function create_sublevel_animation(
+    values::Array{T,3},
+    grid::Array{SVector{3,T},3},
+    z_range::Tuple{T,T},
+    params::VisualizationParameters{T} = VisualizationParameters{T}();
+    overlays = nothing,
+    fps::Int = 30,
+    duration::Int = 20,
+    output_file::String = "sublevel_animation.mp4",
+    title::AbstractString = "Sublevel sets",
+    axis_labels = ("x₁", "x₂", "x₃"),
+    level_markersize::Real = 2,
+    rotate::Bool = true,
+    barcode::Bool = true,
+    min_persistence::Real = 0,
+) where {T<:AbstractFloat}
+    size(grid) == size(values) ||
+        throw(DimensionMismatch("Grid shape $(size(grid)) != values shape $(size(values))"))
+    z_min, z_max = z_range
+    z_min < z_max || throw(ArgumentError("z_range must be increasing, got $z_range"))
+    dims = size(values)
+    N = length(values)
+    LI = LinearIndices(dims)
+    CI = CartesianIndices(dims)
+    order = sortperm(vec(values))
+    parent = zeros(Int, N)                  # 0 = not yet in the sublevel set
+    birth = zeros(Int, N)                   # birth rank of the component whose root this is
+    nborn = Ref(0)
+    ncomp = Ref(0)
+    function findroot(i)
+        while parent[i] != i
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        end
+        return i
+    end
+    offs = (CartesianIndex(1, 0, 0), CartesianIndex(-1, 0, 0), CartesianIndex(0, 1, 0),
+        CartesianIndex(0, -1, 0), CartesianIndex(0, 0, 1), CartesianIndex(0, 0, -1))
+    ptr = Ref(1)
+    function grow_to!(c)
+        while ptr[] <= N && values[order[ptr[]]] <= c
+            v = order[ptr[]]
+            isfinite(values[v]) || (ptr[] += 1; continue)
+            parent[v] = v
+            nborn[] += 1
+            birth[v] = nborn[]
+            ncomp[] += 1
+            for o in offs
+                u = CI[v] + o
+                checkbounds(Bool, values, u) || continue
+                ui = LI[u]
+                parent[ui] == 0 && continue
+                ru, rv = findroot(ui), findroot(v)
+                ru == rv && continue
+                # elder rule: the component born first (lower minimum) survives
+                old, young = birth[ru] < birth[rv] ? (ru, rv) : (rv, ru)
+                parent[young] = old
+                ncomp[] -= 1
+            end
+            ptr[] += 1
+        end
+    end
+
+    # a component is named by its minimum (the union-find root, elder rule); its colour
+    # is its rank in the barcode, so shell and bar share a colour
+    allbars = sublevel_barcode(values)
+    rank = Dict(b.argmin => k for (k, b) in enumerate(allbars))
+    grid_points = vec(grid)
+    fig = Figure(size = params.fig_size)
+    ax = Axis3(fig[1, 1], title = title, xlabel = axis_labels[1], ylabel = axis_labels[2],
+        zlabel = axis_labels[3])
+    limits!(ax, extrema(p[1] for p in grid_points)..., extrema(p[2] for p in grid_points)...,
+        extrema(p[3] for p in grid_points)...)
+    P = length(COMPONENT_PALETTE)
+    slots = [Observable(Point3f[]) for _ in 1:P]
+    for (k, obs) in enumerate(slots)
+        scatter!(ax, obs; color = COMPONENT_PALETTE[k], markersize = level_markersize)
+    end
+    layers = overlays === nothing ? [] : _overlay_layers(ax, overlays)
+    overlays === nothing || _overlay_legend!(fig[1, 2], overlays)
+    info = Observable("")
+    Label(fig[2, 1], info, tellwidth = false)
+
+    # barcode: one bar per component of {f ≤ c} over the animated range, birth → merge
+    # (elder rule), bars of persistence < min_persistence dropped; a cursor at c
+    cursor = Observable(z_min)
+    if barcode
+        bars = [b for b in allbars if b.birth <= z_max && min(b.death, z_max) - b.birth >= min_persistence]
+        bx = Axis(fig[3, 1], xlabel = "level", ylabel = "component", height = 140,
+            yticksvisible = false, yticklabelsvisible = false)
+        xlims!(bx, z_min, z_max)
+        for (k, b) in enumerate(bars)
+            lines!(bx, [b.birth, min(b.death, z_max)], [k, k];
+                color = COMPONENT_PALETTE[mod1(rank[b.argmin], length(COMPONENT_PALETTE))], linewidth = 4)
+        end
+        isempty(bars) || ylims!(bx, 0, length(bars) + 1)
+        vlines!(bx, cursor; color = :black, linewidth = 1)
+    end
+
+    tol = params.point_tolerance
+    function draw!(c)
+        grow_to!(c)
+        buckets = [Point3f[] for _ in 1:P]
+        for v in eachindex(values)
+            parent[v] == 0 && continue
+            values[v] >= c - tol || continue
+            r = findroot(v)
+            p = grid_points[v]
+            push!(buckets[mod1(rank[r], P)], Point3f(p[1], p[2], p[3]))
+        end
+        for k in 1:P
+            slots[k][] = buckets[k]
+        end
+        _update_overlays!(layers, c, params.point_window)
+        info[] = string("level ", round(c, digits = 3), "    components of {f ≤ level}: ", ncomp[])
+        cursor[] = c
+    end
+
+    total_frames = fps * duration
+    theta = range(0, pi, length = total_frames)
+    levels = range(z_min, z_max, length = total_frames)
+    record(fig, output_file, 1:total_frames; framerate = fps) do frame
+        rotate && (ax.azimuth[] = theta[frame])
+        draw!(levels[frame])
+    end
+    @info "Sublevel animation saved to: $output_file"
+    return fig
+end
