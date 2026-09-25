@@ -43,14 +43,28 @@ function _overlay_layers(ax, overlays)
             for k in sort(unique(min.(df.index, 4)))
                 k >= 0 || continue
                 obs = Observable(Point3f[])
-                scatter!(ax, obs; color = INDEX_COLORS[k+1], marker = marker, markersize = ms,
-                    strokewidth = 1, strokecolor = :black)
-                push!(layers, (; rows = df[min.(df.index, 4) .== k, :], obs = obs))
+                scatter!(
+                    ax,
+                    obs;
+                    color = INDEX_COLORS[k+1],
+                    marker = marker,
+                    markersize = ms,
+                    strokewidth = 1,
+                    strokecolor = :black,
+                )
+                push!(layers, (; rows = df[min.(df.index, 4).==k, :], obs = obs))
             end
         else
             obs = Observable(Point3f[])
-            scatter!(ax, obs; color = get(ov, :color, :darkorange), marker = marker,
-                markersize = ms, strokewidth = 1, strokecolor = :black)
+            scatter!(
+                ax,
+                obs;
+                color = get(ov, :color, :darkorange),
+                marker = marker,
+                markersize = ms,
+                strokewidth = 1,
+                strokecolor = :black,
+            )
             push!(layers, (; rows = df, obs = obs))
         end
     end
@@ -60,8 +74,8 @@ end
 function _update_overlays!(layers, level, window)
     for L in layers
         L.obs[] = Point3f[
-            Point3f(r.x1, r.x2, r.x3) for r in eachrow(L.rows)
-            if !any(isnan, (r.x1, r.x2, r.x3, r.z)) && abs(r.z - level) <= window
+            Point3f(r.x1, r.x2, r.x3) for r in eachrow(L.rows) if
+            !any(isnan, (r.x1, r.x2, r.x3, r.z)) && abs(r.z - level) <= window
         ]
     end
 end
@@ -71,14 +85,33 @@ function _overlay_legend!(pos, overlays)
     elems = Any[]
     labels = String[]
     for ov in overlays
-        push!(elems, MarkerElement(marker = get(ov, :marker, :circle), color = :grey70,
-            strokecolor = :black, strokewidth = 1, markersize = 14))
+        push!(
+            elems,
+            MarkerElement(
+                marker = get(ov, :marker, :circle),
+                color = :grey70,
+                strokecolor = :black,
+                strokewidth = 1,
+                markersize = 14,
+            ),
+        )
         push!(labels, ov.label)
     end
-    idx = sort(unique(reduce(vcat, [min.(ov.df.index, 4) for ov in overlays if hasproperty(ov.df, :index)]; init = Int[])))
+    idx = sort(
+        unique(
+            reduce(
+                vcat,
+                [min.(ov.df.index, 4) for ov in overlays if hasproperty(ov.df, :index)];
+                init = Int[],
+            ),
+        ),
+    )
     for k in idx
         k >= 0 || continue
-        push!(elems, MarkerElement(marker = :circle, color = INDEX_COLORS[k+1], markersize = 14))
+        push!(
+            elems,
+            MarkerElement(marker = :circle, color = INDEX_COLORS[k+1], markersize = 14),
+        )
         push!(labels, INDEX_NAMES[k+1])
     end
     Legend(pos, elems, labels; framevisible = false)
@@ -520,8 +553,13 @@ function create_level_set_visualization(
     (isnan(z_min) || isnan(z_max)) && throw(ArgumentError("Invalid z_range"))
 
     fig = Figure(size = params.fig_size)
-    ax = Axis3(fig[1, 1], xlabel = axis_labels[1], ylabel = axis_labels[2], zlabel = axis_labels[3],
-        title = title)
+    ax = Axis3(
+        fig[1, 1],
+        xlabel = axis_labels[1],
+        ylabel = axis_labels[2],
+        zlabel = axis_labels[3],
+        title = title,
+    )
 
     x_range = extrema(p[1] for p in valid_points)
     y_range = extrema(p[2] for p in valid_points)
