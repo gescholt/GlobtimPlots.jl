@@ -18,6 +18,72 @@ using DataFrames
 # Import canonical type definitions from Globtim
 using Globtim: LevelSetData, VisualizationParameters
 
+# ── point-set overlays (precomputed-values overloads) ─────────────────────────
+#
+# `overlays` is a vector of NamedTuples `(; df, label, marker = :circle,
+# markersize = 16, color = :darkorange)`. `df` has columns x1, x2, x3 (the point)
+# and z (its value on the scale of `values`); with an `index` column the points are
+# coloured by Morse index (INDEX_COLORS, 0 = minimum) and `color` is ignored. A
+# point is drawn while |z − level| ≤ `params.point_window`. One scatter per
+# (overlay, index), each with a fixed colour, so a level change only replaces
+# point lists.
+
+const INDEX_COLORS = (:royalblue, :darkorange, :crimson, :purple, :black)
+const INDEX_NAMES = ("minimum", "index 1", "index 2", "index 3", "index ≥ 4")
+
+function _overlay_layers(ax, overlays)
+    layers = []
+    for ov in overlays
+        df = ov.df
+        all(c -> hasproperty(df, c), (:x1, :x2, :x3, :z)) ||
+            throw(ArgumentError("overlay $(ov.label): df needs columns x1, x2, x3, z"))
+        marker = get(ov, :marker, :circle)
+        ms = get(ov, :markersize, 16)
+        if hasproperty(df, :index)
+            for k in sort(unique(min.(df.index, 4)))
+                k >= 0 || continue
+                obs = Observable(Point3f[])
+                scatter!(ax, obs; color = INDEX_COLORS[k+1], marker = marker, markersize = ms,
+                    strokewidth = 1, strokecolor = :black)
+                push!(layers, (; rows = df[min.(df.index, 4) .== k, :], obs = obs))
+            end
+        else
+            obs = Observable(Point3f[])
+            scatter!(ax, obs; color = get(ov, :color, :darkorange), marker = marker,
+                markersize = ms, strokewidth = 1, strokecolor = :black)
+            push!(layers, (; rows = df, obs = obs))
+        end
+    end
+    return layers
+end
+
+function _update_overlays!(layers, level, window)
+    for L in layers
+        L.obs[] = Point3f[
+            Point3f(r.x1, r.x2, r.x3) for r in eachrow(L.rows)
+            if !any(isnan, (r.x1, r.x2, r.x3, r.z)) && abs(r.z - level) <= window
+        ]
+    end
+end
+
+# legend: one grey marker per overlay (its source), one colour per Morse index present
+function _overlay_legend!(pos, overlays)
+    elems = Any[]
+    labels = String[]
+    for ov in overlays
+        push!(elems, MarkerElement(marker = get(ov, :marker, :circle), color = :grey70,
+            strokecolor = :black, strokewidth = 1, markersize = 14))
+        push!(labels, ov.label)
+    end
+    idx = sort(unique(reduce(vcat, [min.(ov.df.index, 4) for ov in overlays if hasproperty(ov.df, :index)]; init = Int[])))
+    for k in idx
+        k >= 0 || continue
+        push!(elems, MarkerElement(marker = :circle, color = INDEX_COLORS[k+1], markersize = 14))
+        push!(labels, INDEX_NAMES[k+1])
+    end
+    Legend(pos, elems, labels; framevisible = false)
+end
+
 """
     prepare_level_set_data(
         grid::Array{SVector{3,T},3},
@@ -424,6 +490,13 @@ Create an interactive 3D level set visualization from pre-computed grid values.
 Same as the `f`-based overload, but skips function evaluation — uses the provided
 `values` array directly. The `values` array must have the same shape as `grid`.
 
+`overlays` (keyword): point sets drawn while their value is within
+`params.point_window` of the level, e.g. the critical points of several surrogates.
+A vector of `(; df, label, marker = :circle, markersize = 16, color)`, where `df` has
+columns x1, x2, x3, z on the scale of `values`, and optionally `index`, in which case
+the points are coloured by Morse index. Sources and indices get a legend at
+`fig[1, 2]`. `title` and `axis_labels` label the `Axis3`.
+
 `Inf` and `NaN` entries in `values` are treated as missing (excluded from level sets).
 """
 function create_level_set_visualization(
@@ -431,7 +504,10 @@ function create_level_set_visualization(
     grid::Array{SVector{3,T},3},
     df::Union{DataFrame,Nothing},
     z_range::Tuple{T,T},
-    params::VisualizationParameters{T} = VisualizationParameters{T}(),
+    params::VisualizationParameters{T} = VisualizationParameters{T}();
+    overlays = nothing,
+    title::AbstractString = "",
+    axis_labels = ("x₁", "x₂", "x₃"),
 ) where {T<:AbstractFloat}
     size(grid) == size(values) ||
         throw(DimensionMismatch("Grid shape $(size(grid)) != values shape $(size(values))"))
@@ -444,13 +520,17 @@ function create_level_set_visualization(
     (isnan(z_min) || isnan(z_max)) && throw(ArgumentError("Invalid z_range"))
 
     fig = Figure(size = params.fig_size)
-    ax = Axis3(fig[1, 1], xlabel = "x₁", ylabel = "x₂", zlabel = "x₃")
+    ax = Axis3(fig[1, 1], xlabel = axis_labels[1], ylabel = axis_labels[2], zlabel = axis_labels[3],
+        title = title)
 
     x_range = extrema(p[1] for p in valid_points)
     y_range = extrema(p[2] for p in valid_points)
     z_range_grid = extrema(p[3] for p in valid_points)
 
     limits!(ax, x_range..., y_range..., z_range_grid...)
+
+    layers = overlays === nothing ? [] : _overlay_layers(ax, overlays)
+    overlays === nothing || _overlay_legend!(fig[1, 2], overlays)
 
     level_slider =
         Slider(fig[2, 1], range = range(z_min, z_max, length = 1000), startvalue = z_min)
@@ -515,6 +595,7 @@ function create_level_set_visualization(
                 end
                 data_points[] = visible_points
             end
+            _update_overlays!(layers, level, params.point_window)
         catch e
             @error "Error in visualization update" exception = e
             rethrow(e)
@@ -526,7 +607,7 @@ function create_level_set_visualization(
     end
 
     update_visualization(z_min)
-    axislegend(ax, position = :rt)
+    overlays === nothing && axislegend(ax, position = :rt)
 
     return fig
 end
@@ -547,6 +628,13 @@ Create an animated level set visualization from pre-computed grid values.
 
 Same as the `f`-based overload, but skips function evaluation — uses the provided
 `values` array directly. The `values` array must have the same shape as `grid`.
+
+`overlays` (keyword): point sets drawn while their value is within
+`params.point_window` of the level, e.g. the critical points of several surrogates.
+A vector of `(; df, label, marker = :circle, markersize = 16, color)`, where `df` has
+columns x1, x2, x3, z on the scale of `values`, and optionally `index`, in which case
+the points are coloured by Morse index. Sources and indices get a legend at
+`fig[1, 2]`. `title` and `axis_labels` label the `Axis3`.
 """
 function create_level_set_animation(
     values::Array{T},
@@ -557,6 +645,10 @@ function create_level_set_animation(
     fps::Int = 30,
     duration::Int = 20,
     output_file::String = "level_set_animation.mp4",
+    overlays = nothing,
+    title::AbstractString = "Level Set Visualization",
+    axis_labels = ("x₁", "x₂", "x₃"),
+    level_label::Bool = overlays !== nothing,
 ) where {T<:AbstractFloat}
     size(grid) == size(values) ||
         throw(DimensionMismatch("Grid shape $(size(grid)) != values shape $(size(values))"))
@@ -569,10 +661,10 @@ function create_level_set_animation(
     fig = Figure(size = params.fig_size)
     ax = Axis3(
         fig[1, 1],
-        title = "Level Set Visualization",
-        xlabel = "x₁",
-        ylabel = "x₂",
-        zlabel = "x₃",
+        title = title,
+        xlabel = axis_labels[1],
+        ylabel = axis_labels[2],
+        zlabel = axis_labels[3],
     )
 
     # Set up initial ranges and limits
@@ -580,6 +672,11 @@ function create_level_set_animation(
     y_range = extrema(p[2] for p in valid_points)
     z_range_grid = extrema(p[3] for p in valid_points)
     limits!(ax, x_range..., y_range..., z_range_grid...)
+
+    layers = overlays === nothing ? [] : _overlay_layers(ax, overlays)
+    overlays === nothing || _overlay_legend!(fig[1, 2], overlays)
+    level_text = Observable("")
+    level_label && Label(fig[2, 1], level_text, tellwidth = false)
 
     level_points = Observable(Point3f[])
     data_points = Observable(Point3f[])
@@ -623,9 +720,11 @@ function create_level_set_animation(
             end
             data_points[] = visible_points
         end
+        _update_overlays!(layers, level, params.point_window)
+        level_text[] = string("level ", round(level, digits = 3))
     end
 
-    axislegend(ax, position = :rt)
+    overlays === nothing && axislegend(ax, position = :rt)
 
     # Animation parameters
     total_frames = fps * duration

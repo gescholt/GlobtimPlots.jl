@@ -65,6 +65,24 @@ using StaticArrays
         @test result !== nothing
     end
 
+    @testset "level sets from values, with index-coloured overlays" begin
+        n = 7
+        xs = range(-1.0, 1.0; length = n)
+        grid = [SVector{3,Float64}(x, y, z) for x in xs, y in xs, z in xs]
+        vals = [p[1]^2 - p[2]^2 + p[3]^2 for p in grid]
+        truth = DataFrame(x1 = [0.0], x2 = [0.0], x3 = [0.0], z = [0.0], index = [1])
+        cands = DataFrame(x1 = [0.01, 0.5], x2 = [0.0, 0.5], x3 = [0.0, 0.0], z = [0.0, 0.0], index = [1, 0])
+        ov = [(; df = truth, label = "truth", marker = :circle), (; df = cands, label = "surrogate", marker = :diamond)]
+        fig = create_level_set_visualization(vals, grid, nothing, (-0.5, 0.5); overlays = ov, title = "saddle")
+        @test fig isa Figure
+        mp4 = tempname() * ".mp4"
+        create_level_set_animation(vals, grid, nothing, (-0.5, 0.5); overlays = ov, fps = 2, duration = 1, output_file = mp4)
+        @test isfile(mp4) && filesize(mp4) > 0
+        rm(mp4; force = true)
+        @test_throws ArgumentError create_level_set_visualization(vals, grid, nothing, (-0.5, 0.5);
+            overlays = [(; df = DataFrame(x1 = [0.0]), label = "bad")])
+    end
+
     @testset "create_experiment_plots (Static backend)" begin
         result =
             (experiment_id = "render_smoke", enabled_tracking = ["approximation_quality"])
