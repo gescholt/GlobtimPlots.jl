@@ -410,7 +410,7 @@ and return a NamedTuple with fields:
 
 Keyword arguments forwarded from sliders:
 - **Newton**: `tol`, `accept_tol`, `max_iterations`, `hessian_tol`, `trust_radius_fraction`
-- **Optim**: `f_abstol`, `x_abstol`, `max_iterations`, `hessian_tol`, `method` (`:neldermead` or `:lbfgs`), `step_size` (LBFGS only)
+- **Optim**: `f_abstol`, `max_iterations`, `hessian_tol`, `method` (`:neldermead` or `:lbfgs`), `x_abstol` and `step_size` (LBFGS only; NelderMead's single stop is the simplex spread, set by `f_abstol`)
 
 ## Arguments
 - `f`: Objective function `f(x::Vector{Float64}) → Float64`
@@ -1326,10 +1326,10 @@ function interactive_levelset_explorer(
                     step_size = snap_lbfgs_step,
                 )
             else
+                # NelderMead has no x test: the f_abstol slider is its simplex-spread stop.
                 pt -> refine_optim(
                     pt;
                     f_abstol = snap_f_abstol,
-                    x_abstol = snap_x_abstol,
                     max_iterations = snap_optim_max,
                     hessian_tol = snap_hessian_tol,
                     method = :neldermead,
