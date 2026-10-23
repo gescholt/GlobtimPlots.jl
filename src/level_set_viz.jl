@@ -81,7 +81,7 @@ function _update_overlays!(layers, level, window)
 end
 
 # legend: one grey marker per overlay (its source), one colour per Morse index present
-function _overlay_legend!(pos, overlays)
+function _overlay_legend!(pos, overlays; index_names = INDEX_NAMES)
     elems = Any[]
     labels = String[]
     for ov in overlays
@@ -112,7 +112,7 @@ function _overlay_legend!(pos, overlays)
             elems,
             MarkerElement(marker = :circle, color = INDEX_COLORS[k+1], markersize = 14),
         )
-        push!(labels, INDEX_NAMES[k+1])
+        push!(labels, index_names[k+1])
     end
     Legend(pos, elems, labels; framevisible = false)
 end
@@ -691,7 +691,15 @@ function create_level_set_animation(
     axis_labels = ("x₁", "x₂", "x₃"),
     level_markersize::Real = 2,
     level_label::Bool = overlays !== nothing,
+    azimuth::Tuple{<:Real,<:Real} = (0, π),
+    index_names = INDEX_NAMES,
+    level_format = l -> string("level ", round(l, digits = 3)),
 ) where {T<:AbstractFloat}
+    # `azimuth` is the camera's turn over the film (the default half turn passes edge-on at
+    # π/2; a range strictly inside one quadrant, e.g. (1.05π, 1.45π), never does);
+    # `index_names` relabels the Morse-index legend (e.g. valley floor / mountain pass /
+    # hilltop); `level_format` writes the level caption, so a transformed value scale
+    # (ranks, logs) can be captioned in the quantity's own units.
     size(grid) == size(values) ||
         throw(DimensionMismatch("Grid shape $(size(grid)) != values shape $(size(values))"))
 
@@ -716,7 +724,7 @@ function create_level_set_animation(
     limits!(ax, x_range..., y_range..., z_range_grid...)
 
     layers = overlays === nothing ? [] : _overlay_layers(ax, overlays)
-    overlays === nothing || _overlay_legend!(fig[1, 2], overlays)
+    overlays === nothing || _overlay_legend!(fig[1, 2], overlays; index_names = index_names)
     level_text = Observable("")
     level_label && Label(fig[2, 1], level_text, tellwidth = false)
 
@@ -769,14 +777,14 @@ function create_level_set_animation(
             data_points[] = visible_points
         end
         _update_overlays!(layers, level, params.point_window)
-        level_text[] = string("level ", round(level, digits = 3))
+        level_text[] = level_format(level)
     end
 
     overlays === nothing && axislegend(ax, position = :rt)
 
     # Animation parameters
     total_frames = fps * duration
-    theta = range(0, pi, length = total_frames)
+    theta = range(azimuth[1], azimuth[2], length = total_frames)
     levels = range(z_min, z_max, length = total_frames)
 
     record(fig, output_file, 1:total_frames; framerate = fps) do frame
