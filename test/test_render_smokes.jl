@@ -79,6 +79,17 @@ using StaticArrays
         create_level_set_animation(vals, grid, nothing, (-0.5, 0.5); overlays = ov, fps = 2, duration = 1, output_file = mp4)
         @test isfile(mp4) && filesize(mp4) > 0
         rm(mp4; force = true)
+        # edge crossings: on the level set to within one cell's variation of f, drawn the same way
+        xs_c = level_set_crossings(grid, vals, 0.25)
+        h = step(xs)
+        @test !isempty(xs_c)
+        @test all(p -> abs(p[1]^2 - p[2]^2 + p[3]^2 - 0.25) < 3h * (2 + h), xs_c)
+        @test isempty(level_set_crossings(grid, vals, 10.0))
+        create_level_set_animation(vals, grid, nothing, (-0.5, 0.5); overlays = ov, fps = 2, duration = 1,
+            output_file = mp4, level_style = :crossings)
+        @test isfile(mp4) && filesize(mp4) > 0
+        rm(mp4; force = true)
+        @test_throws ArgumentError create_level_set_animation(vals, grid, nothing, (-0.5, 0.5); level_style = :bogus)
         @test_throws ArgumentError create_level_set_visualization(vals, grid, nothing, (-0.5, 0.5);
             overlays = [(; df = DataFrame(x1 = [0.0]), label = "bad")])
     end

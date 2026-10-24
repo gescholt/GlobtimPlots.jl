@@ -155,6 +155,45 @@ function prepare_level_set_data(
 end
 
 """
+    level_set_crossings(grid, values, level) -> Vector{SVector{3,T}}
+
+The points where the grid's edges cross the level: for every edge in the three axis
+directions whose endpoint values straddle `level`, the linearly interpolated crossing.
+These are the vertices of the piecewise-linear isosurface (marching cubes without the
+triangles), so every cell the level set passes through contributes about three points
+and the density on the surface is uniform. The shell of `prepare_level_set_data` has
+thickness `tolerance / |∇f|` instead, one grid point thick where `f` is steep.
+Non-finite values are skipped.
+"""
+function level_set_crossings(
+    grid::Array{SVector{3,T},3},
+    values::Array{T},
+    level::T,
+) where {T<:AbstractFloat}
+    size(grid) == size(values) ||
+        throw(DimensionMismatch("Grid and values must have same dimensions"))
+    out = SVector{3,T}[]
+    ni, nj, nk = size(values)
+    @inbounds for k in 1:nk, j in 1:nj, i in 1:ni
+        a = values[i, j, k]
+        isfinite(a) || continue
+        da = a - level
+        for (i2, j2, k2) in ((i + 1, j, k), (i, j + 1, k), (i, j, k + 1))
+            (i2 <= ni && j2 <= nj && k2 <= nk) || continue
+            b = values[i2, j2, k2]
+            isfinite(b) || continue
+            db = b - level
+            (da * db <= zero(T) && a != b) || continue
+            t = da / (a - b)
+            g1 = grid[i, j, k]
+            g2 = grid[i2, j2, k2]
+            push!(out, g1 + t * (g2 - g1))
+        end
+    end
+    return out
+end
+
+"""
     to_makie_format(level_set::LevelSetData{T}) where {T<:AbstractFloat}
 
 Convert LevelSetData to format suitable for Makie plotting.
@@ -676,6 +715,11 @@ columns x1, x2, x3, z on the scale of `values`, and optionally `index`, in which
 the points are coloured by Morse index. Sources and indices get a legend at
 `fig[1, 2]`. `title` and `axis_labels` label the `Axis3`; `level_markersize` sets
 the size of the level-set points (default 6 here, 2 in the animation).
+
+`level_style` picks the level-set points: `:shell` (default), the grid points within
+`params.point_tolerance` of the level, or `:crossings`, the interpolated crossings of
+the grid's edges (`level_set_crossings`): uniform density on the level set, no
+tolerance, about three points per cell the surface passes through.
 """
 function create_level_set_animation(
     values::Array{T},
@@ -694,7 +738,10 @@ function create_level_set_animation(
     azimuth::Tuple{<:Real,<:Real} = (0, π),
     index_names = INDEX_NAMES,
     level_format = l -> string("level ", round(l, digits = 3)),
+    level_style::Symbol = :shell,
 ) where {T<:AbstractFloat}
+    level_style in (:shell, :crossings) ||
+        throw(ArgumentError("level_style must be :shell or :crossings, got $level_style"))
     # `azimuth` is the camera's turn over the film (the default half turn passes edge-on at
     # π/2; a range strictly inside one quadrant, e.g. (1.05π, 1.45π), never does);
     # `index_names` relabels the Morse-index legend (e.g. valley floor / mountain pass /
@@ -751,16 +798,24 @@ function create_level_set_animation(
     end
 
     function update_visualization(level::T) where {T<:AbstractFloat}
-        level_data =
-            prepare_level_set_data(grid, values, level, tolerance = params.point_tolerance)
-
-        formatted_data = to_makie_format(level_data)
-
         new_points = Point3f[]
-        if !isempty(formatted_data.xyz[1])
-            for (x, y, z) in zip(formatted_data.xyz...)
-                if !any(isnan, (x, y, z))
-                    push!(new_points, Point3f(x, y, z))
+        if level_style == :crossings
+            for p in level_set_crossings(grid, values, level)
+                any(isnan, p) || push!(new_points, Point3f(p...))
+            end
+        else
+            level_data = prepare_level_set_data(
+                grid,
+                values,
+                level,
+                tolerance = params.point_tolerance,
+            )
+            formatted_data = to_makie_format(level_data)
+            if !isempty(formatted_data.xyz[1])
+                for (x, y, z) in zip(formatted_data.xyz...)
+                    if !any(isnan, (x, y, z))
+                        push!(new_points, Point3f(x, y, z))
+                    end
                 end
             end
         end
