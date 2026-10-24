@@ -216,7 +216,8 @@ function level_set_crossings(
     return normals ? (out, nrm) : out
 end
 
-@inline _fdiff(vh, vl, h) = (isfinite(vh) && isfinite(vl) && h != 0) ? (vh - vl) / h : zero(vh)
+@inline _fdiff(vh, vl, h) =
+    (isfinite(vh) && isfinite(vl) && h != 0) ? (vh - vl) / h : zero(vh)
 
 # central-difference gradient of `values` at node (i, j, k), one-sided at the boundary
 @inline function _node_gradient(
@@ -231,9 +232,21 @@ end
     jl, jh = max(j - 1, 1), min(j + 1, nj)
     kl, kh = max(k - 1, 1), min(k + 1, nk)
     @inbounds begin
-        gx = _fdiff(values[ih, j, k], values[il, j, k], grid[ih, j, k][1] - grid[il, j, k][1])
-        gy = _fdiff(values[i, jh, k], values[i, jl, k], grid[i, jh, k][2] - grid[i, jl, k][2])
-        gz = _fdiff(values[i, j, kh], values[i, j, kl], grid[i, j, kh][3] - grid[i, j, kl][3])
+        gx = _fdiff(
+            values[ih, j, k],
+            values[il, j, k],
+            grid[ih, j, k][1] - grid[il, j, k][1],
+        )
+        gy = _fdiff(
+            values[i, jh, k],
+            values[i, jl, k],
+            grid[i, jh, k][2] - grid[i, jl, k][2],
+        )
+        gz = _fdiff(
+            values[i, j, kh],
+            values[i, j, kl],
+            grid[i, j, kh][3] - grid[i, j, kl][3],
+        )
     end
     return SVector{3,T}(gx, gy, gz)
 end
@@ -913,13 +926,18 @@ function create_level_set_animation(
         (issorted(xs) && issorted(ys) && issorted(zs)) ||
             throw(ArgumentError("patches need a tensor grid with increasing axes"))
         for pt in patches
-            size(pt.grid) == size(pt.values) ||
-                throw(DimensionMismatch("patch grid $(size(pt.grid)) != values $(size(pt.values))"))
+            size(pt.grid) == size(pt.values) || throw(
+                DimensionMismatch(
+                    "patch grid $(size(pt.grid)) != values $(size(pt.values))",
+                ),
+            )
             lo = reduce((a, b) -> min.(a, b), vec(pt.grid))
             hi = reduce((a, b) -> max.(a, b), vec(pt.grid))
-            skip[searchsortedfirst(xs, lo[1]):searchsortedlast(xs, hi[1]),
-                 searchsortedfirst(ys, lo[2]):searchsortedlast(ys, hi[2]),
-                 searchsortedfirst(zs, lo[3]):searchsortedlast(zs, hi[3])] .= true
+            skip[
+                searchsortedfirst(xs, lo[1]):searchsortedlast(xs, hi[1]),
+                searchsortedfirst(ys, lo[2]):searchsortedlast(ys, hi[2]),
+                searchsortedfirst(zs, lo[3]):searchsortedlast(zs, hi[3]),
+            ] .= true
         end
     end
 
@@ -974,7 +992,8 @@ function create_level_set_animation(
                     lo = reduce((a, b) -> min.(a, b), vec(pt.grid))
                     hi = reduce((a, b) -> max.(a, b), vec(pt.grid))
                     c, hw = (lo + hi) / 2, max.((hi - lo) / 2, eps(T))
-                    kfac = max(coarse_h / abs(pt.grid[2, 1, 1][1] - pt.grid[1, 1, 1][1]), 1.0)
+                    kfac =
+                        max(coarse_h / abs(pt.grid[2, 1, 1][1] - pt.grid[1, 1, 1][1]), 1.0)
                     keep = [taper_keep(p, c, hw, kfac) for p in p2]
                     p2, n2 = p2[keep], n2[keep]
                 end
@@ -998,7 +1017,10 @@ function create_level_set_animation(
                 for (p, nv) in zip(pts, nrm)
                     any(isnan, p) && continue
                     push!(new_points, Point3f(p...))
-                    push!(cols, Float32(0.2 + 0.8 * abs(dot(SVector{3,Float64}(nv), light))))
+                    push!(
+                        cols,
+                        Float32(0.2 + 0.8 * abs(dot(SVector{3,Float64}(nv), light))),
+                    )
                 end
                 Makie.update!(level_plot, new_points; color = cols)
             else
@@ -1041,7 +1063,8 @@ function create_level_set_animation(
     overlays === nothing && axislegend(ax, position = :rt)
 
     # Animation parameters
-    frame_levels = levels === nothing ? range(z_min, z_max, length = fps * duration) : levels
+    frame_levels =
+        levels === nothing ? range(z_min, z_max, length = fps * duration) : levels
     total_frames = length(frame_levels)
     theta = range(azimuth[1], azimuth[2], length = total_frames)
 
