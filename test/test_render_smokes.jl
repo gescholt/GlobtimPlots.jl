@@ -12,6 +12,7 @@ using GlobtimPlots
 using CairoMakie
 using DataFrames
 using StaticArrays
+using LinearAlgebra: dot, norm
 
 @testset "Render smokes for top entry points" begin
     @testset "cairo_plot_polyapprox_levelset" begin
@@ -90,6 +91,29 @@ using StaticArrays
         @test isfile(mp4) && filesize(mp4) > 0
         rm(mp4; force = true)
         @test_throws ArgumentError create_level_set_animation(vals, grid, nothing, (-0.5, 0.5); level_style = :bogus)
+        # normals follow the gradient, the skip mask cuts edges out, the schedule dwells on events
+        pc, nc = level_set_crossings(grid, vals, 0.25; normals = true)
+        @test length(pc) == length(nc) == length(xs_c)
+        @test all(zip(pc, nc)) do (p, nv)
+            g = SVector(2p[1], -2p[2], 2p[3])
+            abs(dot(nv, g / norm(g))) > 0.95
+        end
+        mask = [p[1] > 0 for p in grid]
+        @test all(p -> p[1] <= h, level_set_crossings(grid, vals, 0.25; skip = mask))
+        sched = level_schedule([0.0], 101, (-0.5, 0.5); window = 0.05)
+        @test length(sched) == 101 && issorted(sched; lt = <=) && sched[1] == -0.5 && sched[end] == 0.5
+        @test all(diff(sched) .> 0)
+        @test count(l -> abs(l) <= 0.1, sched) > 50
+        @test level_schedule([0.0], 11, (-0.5, 0.5); window = 0.05, share = 0) ≈ collect(range(-0.5, 0.5, length = 11))
+        fine_xs = range(-0.4, 0.4; length = 9)
+        fine = [SVector{3,Float64}(x, y, z) for x in fine_xs, y in fine_xs, z in fine_xs]
+        fine_vals = [p[1]^2 - p[2]^2 + p[3]^2 for p in fine]
+        create_level_set_animation(vals, grid, nothing, (-0.5, 0.5); overlays = ov, fps = 2, output_file = mp4,
+            level_style = :crossings, levels = level_schedule([0.0], 4, (-0.5, 0.5); window = 0.05),
+            patches = [(; grid = fine, values = fine_vals)], shading = true)
+        @test isfile(mp4) && filesize(mp4) > 0
+        rm(mp4; force = true)
+        @test_throws ArgumentError create_level_set_animation(vals, grid, nothing, (-0.5, 0.5); shading = true, level_style = :shell)
         @test_throws ArgumentError create_level_set_visualization(vals, grid, nothing, (-0.5, 0.5);
             overlays = [(; df = DataFrame(x1 = [0.0]), label = "bad")])
     end

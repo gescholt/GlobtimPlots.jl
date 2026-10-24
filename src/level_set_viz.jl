@@ -14,6 +14,7 @@ and re-exported here for convenience.
 using Makie
 using StaticArrays
 using DataFrames
+using LinearAlgebra: norm, dot
 
 # Import canonical type definitions from Globtim
 using Globtim: LevelSetData, VisualizationParameters
@@ -155,7 +156,7 @@ function prepare_level_set_data(
 end
 
 """
-    level_set_crossings(grid, values, level) -> Vector{SVector{3,T}}
+    level_set_crossings(grid, values, level; normals = false, skip = nothing)
 
 The points where the grid's edges cross the level: for every edge in the three axis
 directions whose endpoint values straddle `level`, the linearly interpolated crossing.
@@ -164,15 +165,29 @@ triangles), so every cell the level set passes through contributes about three p
 and the density on the surface is uniform. The shell of `prepare_level_set_data` has
 thickness `tolerance / |∇f|` instead, one grid point thick where `f` is steep.
 Non-finite values are skipped.
+
+`skip`, a Bool array of the grid's shape, drops every edge whose two endpoints are both
+marked (used to cut the coarse grid out under finer patches). With `normals = true` the
+result is `(points, normals)`: the unit gradient of `values` at each crossing, from the
+central-difference gradient at the two endpoint nodes (one-sided at the boundary)
+interpolated like the point; a vanishing gradient gives `(0, 0, 1)`. The gradient of a
+monotone transform of `f` (ranks, logs) has the direction of `∇f`, so transformed
+values shade the same.
 """
 function level_set_crossings(
     grid::Array{SVector{3,T},3},
     values::Array{T},
-    level::T,
+    level::T;
+    normals::Bool = false,
+    skip::Union{Nothing,AbstractArray{Bool}} = nothing,
 ) where {T<:AbstractFloat}
     size(grid) == size(values) ||
         throw(DimensionMismatch("Grid and values must have same dimensions"))
+    skip === nothing ||
+        size(skip) == size(values) ||
+        throw(DimensionMismatch("skip mask must have the grid's shape"))
     out = SVector{3,T}[]
+    nrm = SVector{3,T}[]
     ni, nj, nk = size(values)
     @inbounds for k in 1:nk, j in 1:nj, i in 1:ni
         a = values[i, j, k]
@@ -180,6 +195,7 @@ function level_set_crossings(
         da = a - level
         for (i2, j2, k2) in ((i + 1, j, k), (i, j + 1, k), (i, j, k + 1))
             (i2 <= ni && j2 <= nj && k2 <= nk) || continue
+            skip !== nothing && skip[i, j, k] && skip[i2, j2, k2] && continue
             b = values[i2, j2, k2]
             isfinite(b) || continue
             db = b - level
@@ -188,7 +204,92 @@ function level_set_crossings(
             g1 = grid[i, j, k]
             g2 = grid[i2, j2, k2]
             push!(out, g1 + t * (g2 - g1))
+            if normals
+                n1 = _node_gradient(grid, values, i, j, k)
+                n2 = _node_gradient(grid, values, i2, j2, k2)
+                n = n1 + t * (n2 - n1)
+                nn = norm(n)
+                push!(nrm, nn > zero(T) ? n / nn : SVector{3,T}(0, 0, 1))
+            end
         end
+    end
+    return normals ? (out, nrm) : out
+end
+
+@inline _fdiff(vh, vl, h) = (isfinite(vh) && isfinite(vl) && h != 0) ? (vh - vl) / h : zero(vh)
+
+# central-difference gradient of `values` at node (i, j, k), one-sided at the boundary
+@inline function _node_gradient(
+    grid::Array{SVector{3,T},3},
+    values::Array{T},
+    i::Int,
+    j::Int,
+    k::Int,
+) where {T<:AbstractFloat}
+    ni, nj, nk = size(values)
+    il, ih = max(i - 1, 1), min(i + 1, ni)
+    jl, jh = max(j - 1, 1), min(j + 1, nj)
+    kl, kh = max(k - 1, 1), min(k + 1, nk)
+    @inbounds begin
+        gx = _fdiff(values[ih, j, k], values[il, j, k], grid[ih, j, k][1] - grid[il, j, k][1])
+        gy = _fdiff(values[i, jh, k], values[i, jl, k], grid[i, jh, k][2] - grid[i, jl, k][2])
+        gz = _fdiff(values[i, j, kh], values[i, j, kl], grid[i, j, kh][3] - grid[i, j, kl][3])
+    end
+    return SVector{3,T}(gx, gy, gz)
+end
+
+"""
+    level_schedule(events, n, z_range; window, share = 0.6, cap = 3) -> Vector{T}
+
+`n` levels from `z_range[1]` to `z_range[2]`, one per frame, that dwell on the
+`events` (e.g. the critical values, where the level set's topology changes) and sweep
+between them. The frame density is `w(r) = 1 + A · min(Σ_k K((r − r_k) / window), cap)`
+with a Gaussian `K`; `A` is set so the bumps carry the fraction `share` of the frames,
+and a cluster of events is capped at `cap` bumps so it cannot stall the film. Events
+outside the range are ignored; `share = 0` or no event gives the uniform sweep. Pass the
+result as `levels` to `create_level_set_animation`.
+"""
+function level_schedule(
+    events::AbstractVector,
+    n::Integer,
+    z_range::Tuple{T,T};
+    window::Real,
+    share::Real = 0.6,
+    cap::Real = 3,
+) where {T<:AbstractFloat}
+    n >= 2 || throw(ArgumentError("n must be at least 2"))
+    0 <= share < 1 || throw(ArgumentError("share must be in [0, 1)"))
+    window > 0 || throw(ArgumentError("window must be positive"))
+    z_min, z_max = z_range
+    z_max > z_min || throw(ArgumentError("z_range must be increasing"))
+    uniform = collect(T, range(z_min, z_max, length = n))
+    ev = T[e for e in events if isfinite(e) && z_min <= e <= z_max]
+    (share == 0 || isempty(ev)) && return uniform
+    m = 20_000
+    r = range(z_min, z_max, length = m)
+    dr = T(step(r))
+    σ = T(window)
+    bump = zeros(T, m)
+    for e in ev, (q, x) in enumerate(r)
+        d = (x - e) / σ
+        abs(d) < 5 && (bump[q] += exp(-d^2 / 2))
+    end
+    bump .= min.(bump, T(cap))
+    Ib = sum(bump) * dr
+    Ib > 0 || return uniform
+    A = T(share / (1 - share)) * (z_max - z_min) / Ib
+    w = 1 .+ A .* bump
+    cum = cumsum(w)
+    cum .-= cum[1]
+    cum ./= cum[end]
+    out = Vector{T}(undef, n)
+    out[1] = z_min
+    out[n] = z_max
+    for i in 2:n-1
+        t = T(i - 1) / (n - 1)
+        q = clamp(searchsortedlast(cum, t), 1, m - 1)
+        f = (t - cum[q]) / (cum[q+1] - cum[q])
+        out[i] = r[q] + f * dr
     end
     return out
 end
@@ -720,6 +821,18 @@ the size of the level-set points (default 6 here, 2 in the animation).
 `params.point_tolerance` of the level, or `:crossings`, the interpolated crossings of
 the grid's edges (`level_set_crossings`): uniform density on the level set, no
 tolerance, about three points per cell the surface passes through.
+
+`levels`: an explicit level per frame (e.g. from `level_schedule`, to dwell on the
+critical values); then the film has `length(levels)` frames and `duration` is ignored.
+`patches` (`:crossings` only): finer grids `(; grid, values)` on the same value scale,
+drawn in place of the coarse grid inside their bounding boxes (the coarse grid must be
+a tensor grid with increasing axes; where two patches overlap both are drawn).
+With `patch_taper` (default) a patch keeps every crossing in its inner 40 % and thins
+them towards its edge, down to the coarse grid's density, so the patch does not show as
+a denser rectangle.
+`shading` (`:crossings` only) colours each point by `0.2 + 0.8 |n · l|`, `n` the unit
+gradient at the point and `l` a light beside the camera (the eye direction tilted up),
+through `level_colormap`; both sides of a sheet shade alike.
 """
 function create_level_set_animation(
     values::Array{T},
@@ -739,9 +852,20 @@ function create_level_set_animation(
     index_names = INDEX_NAMES,
     level_format = l -> string("level ", round(l, digits = 3)),
     level_style::Symbol = :shell,
+    levels::Union{Nothing,AbstractVector} = nothing,
+    patches = nothing,
+    shading::Bool = false,
+    level_colormap = cgrad([:midnightblue, :royalblue, :skyblue]),
+    patch_taper::Bool = true,
 ) where {T<:AbstractFloat}
     level_style in (:shell, :crossings) ||
         throw(ArgumentError("level_style must be :shell or :crossings, got $level_style"))
+    (patches === nothing && !shading) ||
+        level_style == :crossings ||
+        throw(ArgumentError("patches and shading need level_style = :crossings"))
+    levels === nothing ||
+        length(levels) >= 1 ||
+        throw(ArgumentError("levels must hold at least one level"))
     # `azimuth` is the camera's turn over the film (the default half turn passes edge-on at
     # π/2; a range strictly inside one quadrant, e.g. (1.05π, 1.45π), never does);
     # `index_names` relabels the Morse-index legend (e.g. valley floor / mountain pass /
@@ -778,13 +902,46 @@ function create_level_set_animation(
     level_points = Observable(Point3f[])
     data_points = Observable(Point3f[])
 
-    scatter!(
-        ax,
-        level_points,
-        color = :blue,
-        markersize = level_markersize,
-        label = "Level Set",
-    )
+    # the coarse grid is cut out under the patches: nodes inside a patch's bounding box
+    skip = nothing
+    if patches !== nothing
+        skip = falses(size(grid))
+        ni, nj, nk = size(grid)
+        xs = [grid[i, 1, 1][1] for i in 1:ni]
+        ys = [grid[1, j, 1][2] for j in 1:nj]
+        zs = [grid[1, 1, k][3] for k in 1:nk]
+        (issorted(xs) && issorted(ys) && issorted(zs)) ||
+            throw(ArgumentError("patches need a tensor grid with increasing axes"))
+        for pt in patches
+            size(pt.grid) == size(pt.values) ||
+                throw(DimensionMismatch("patch grid $(size(pt.grid)) != values $(size(pt.values))"))
+            lo = reduce((a, b) -> min.(a, b), vec(pt.grid))
+            hi = reduce((a, b) -> max.(a, b), vec(pt.grid))
+            skip[searchsortedfirst(xs, lo[1]):searchsortedlast(xs, hi[1]),
+                 searchsortedfirst(ys, lo[2]):searchsortedlast(ys, hi[2]),
+                 searchsortedfirst(zs, lo[3]):searchsortedlast(zs, hi[3])] .= true
+        end
+    end
+
+    level_plot = if shading
+        scatter!(
+            ax,
+            Point3f[],
+            color = Float32[],
+            colormap = level_colormap,
+            colorrange = (0.0f0, 1.0f0),
+            markersize = level_markersize,
+            label = "Level Set",
+        )
+    else
+        scatter!(
+            ax,
+            level_points,
+            color = :blue,
+            markersize = level_markersize,
+            label = "Level Set",
+        )
+    end
 
     if !isnothing(df)
         scatter!(
@@ -797,11 +954,57 @@ function create_level_set_animation(
         )
     end
 
+    # every crossing of the coarse grid (outside the patches) and of each patch; a patch's
+    # crossings are thinned towards its edge from full density (inner 40 %) to the coarse
+    # grid's (crossings per area scale as 1/h², so keep 1/k² at the edge), by a hash of the
+    # point so the choice is the same from frame to frame
+    coarse_h = size(grid, 1) > 1 ? abs(grid[2, 1, 1][1] - grid[1, 1, 1][1]) : one(T)
+    function taper_keep(p, c, hw, kfac)
+        w = maximum(abs.(p - c) ./ hw)
+        q = w < 0.4 ? 1.0 : 1 - (w - 0.4) / 0.6 * (1 - 1 / kfac^2)
+        h = mod(sin(dot(p, SVector{3,Float64}(12.9898, 78.233, 37.719))) * 43758.5453, 1)
+        return h < q
+    end
+    function all_crossings(level::T) where {T<:AbstractFloat}
+        pts, nrm = level_set_crossings(grid, values, level; normals = true, skip = skip)
+        if patches !== nothing
+            for pt in patches
+                p2, n2 = level_set_crossings(pt.grid, pt.values, level; normals = true)
+                if patch_taper && size(pt.grid, 1) > 1
+                    lo = reduce((a, b) -> min.(a, b), vec(pt.grid))
+                    hi = reduce((a, b) -> max.(a, b), vec(pt.grid))
+                    c, hw = (lo + hi) / 2, max.((hi - lo) / 2, eps(T))
+                    kfac = max(coarse_h / abs(pt.grid[2, 1, 1][1] - pt.grid[1, 1, 1][1]), 1.0)
+                    keep = [taper_keep(p, c, hw, kfac) for p in p2]
+                    p2, n2 = p2[keep], n2[keep]
+                end
+                append!(pts, p2)
+                append!(nrm, n2)
+            end
+        end
+        return pts, nrm
+    end
+
     function update_visualization(level::T) where {T<:AbstractFloat}
         new_points = Point3f[]
         if level_style == :crossings
-            for p in level_set_crossings(grid, values, level)
-                any(isnan, p) || push!(new_points, Point3f(p...))
+            pts, nrm = all_crossings(level)
+            if shading
+                az, el = Float64(ax.azimuth[]), Float64(ax.elevation[])
+                eye = SVector{3,Float64}(cos(az) * cos(el), sin(az) * cos(el), sin(el))
+                light = eye + SVector{3,Float64}(0, 0, 0.6)
+                light = light / norm(light)
+                cols = Float32[]
+                for (p, nv) in zip(pts, nrm)
+                    any(isnan, p) && continue
+                    push!(new_points, Point3f(p...))
+                    push!(cols, Float32(0.2 + 0.8 * abs(dot(SVector{3,Float64}(nv), light))))
+                end
+                Makie.update!(level_plot, new_points; color = cols)
+            else
+                for p in pts
+                    any(isnan, p) || push!(new_points, Point3f(p...))
+                end
             end
         else
             level_data = prepare_level_set_data(
@@ -819,7 +1022,7 @@ function create_level_set_animation(
                 end
             end
         end
-        level_points[] = new_points
+        shading || (level_points[] = new_points)
 
         if !isnothing(df)
             visible_points = Point3f[]
@@ -838,16 +1041,16 @@ function create_level_set_animation(
     overlays === nothing && axislegend(ax, position = :rt)
 
     # Animation parameters
-    total_frames = fps * duration
+    frame_levels = levels === nothing ? range(z_min, z_max, length = fps * duration) : levels
+    total_frames = length(frame_levels)
     theta = range(azimuth[1], azimuth[2], length = total_frames)
-    levels = range(z_min, z_max, length = total_frames)
 
     record(fig, output_file, 1:total_frames; framerate = fps) do frame
         # Update camera position
         ax.azimuth[] = theta[frame]
 
         # Update level set
-        update_visualization(levels[frame])
+        update_visualization(T(frame_levels[frame]))
     end
 
     @info "Animation saved to: $output_file"
