@@ -24,7 +24,8 @@ using Globtim: LevelSetData, VisualizationParameters
 # `overlays` is a vector of NamedTuples `(; df, label, marker = :circle,
 # markersize = 16, color = :darkorange)`. `df` has columns x1, x2, x3 (the point)
 # and z (its value on the scale of `values`); with an `index` column the points are
-# coloured by Morse index (INDEX_COLORS, 0 = minimum) and `color` is ignored. A
+# coloured by Morse index (INDEX_COLORS, 0 = minimum) and `color` is ignored; an
+# optional `index_labels` 5-tuple names its legend entries by index (0, 1, 2, 3, ≥ 4). A
 # point is drawn while |z − level| ≤ `params.point_window`. One scatter per
 # (overlay, index), each with a fixed colour, so a level change only replaces
 # point lists.
@@ -82,40 +83,52 @@ function _update_overlays!(layers, level, window)
 end
 
 # legend: one grey marker per overlay (its source), one colour per Morse index present
-function _overlay_legend!(pos, overlays; index_names = INDEX_NAMES)
+function _overlay_legend!(pos, overlays; index_names = INDEX_NAMES, labelsize = nothing)
+    # one entry per marker actually drawn: an indexed overlay gives one entry per Morse
+    # index present, in that index's colour, named by the overlay's own `index_labels`
+    # (a 5-tuple for index 0, 1, 2, 3, ≥ 4) if it has them, by `index_names` if it is the
+    # only indexed overlay, else "label: index name"; any other overlay one entry in its colour
+    n_indexed = count(ov -> hasproperty(ov.df, :index), overlays)
     elems = Any[]
     labels = String[]
     for ov in overlays
-        push!(
-            elems,
-            MarkerElement(
-                marker = get(ov, :marker, :circle),
-                color = :grey70,
-                strokecolor = :black,
-                strokewidth = 1,
-                markersize = 14,
-            ),
-        )
-        push!(labels, ov.label)
+        marker = get(ov, :marker, :circle)
+        if hasproperty(ov.df, :index)
+            names = get(ov, :index_labels, nothing)
+            for k in sort(unique(min.(ov.df.index, 4)))
+                k >= 0 || continue
+                push!(
+                    elems,
+                    MarkerElement(
+                        marker = marker,
+                        color = INDEX_COLORS[k+1],
+                        strokecolor = :black,
+                        strokewidth = 1,
+                        markersize = 16,
+                    ),
+                )
+                push!(
+                    labels,
+                    names !== nothing ? names[k+1] :
+                    n_indexed == 1 ? index_names[k+1] : string(ov.label, ": ", index_names[k+1]),
+                )
+            end
+        else
+            push!(
+                elems,
+                MarkerElement(
+                    marker = marker,
+                    color = get(ov, :color, :darkorange),
+                    strokecolor = :black,
+                    strokewidth = 1,
+                    markersize = 16,
+                ),
+            )
+            push!(labels, ov.label)
+        end
     end
-    idx = sort(
-        unique(
-            reduce(
-                vcat,
-                [min.(ov.df.index, 4) for ov in overlays if hasproperty(ov.df, :index)];
-                init = Int[],
-            ),
-        ),
-    )
-    for k in idx
-        k >= 0 || continue
-        push!(
-            elems,
-            MarkerElement(marker = :circle, color = INDEX_COLORS[k+1], markersize = 14),
-        )
-        push!(labels, index_names[k+1])
-    end
-    Legend(pos, elems, labels; framevisible = false)
+    kw = labelsize === nothing ? (;) : (; labelsize = labelsize)
+    Legend(pos, elems, labels; framevisible = false, kw...)
 end
 
 """
@@ -872,6 +885,7 @@ function create_level_set_animation(
     shading::Bool = false,
     level_colormap = cgrad([:midnightblue, :royalblue, :skyblue]),
     patch_taper::Bool = true,
+    fontsize::Union{Nothing,Real} = nothing,
 ) where {T<:AbstractFloat}
     level_style in (:shell, :crossings) ||
         throw(ArgumentError("level_style must be :shell or :crossings, got $level_style"))
@@ -894,13 +908,29 @@ function create_level_set_animation(
 
     z_min, z_max = z_range
 
+    # `fontsize`: the legend, caption and axis-label size (title 1.3×, tick labels 0.8×);
+    # `nothing` keeps Makie's defaults
+    fs = fontsize === nothing ? (;) :
+        (;
+        titlesize = 1.3fontsize,
+        xlabelsize = fontsize,
+        ylabelsize = fontsize,
+        zlabelsize = fontsize,
+        xticklabelsize = 0.8fontsize,
+        yticklabelsize = 0.8fontsize,
+        zticklabelsize = 0.8fontsize,
+        xlabeloffset = 2.6fontsize,
+        ylabeloffset = 2.6fontsize,
+        zlabeloffset = 2.6fontsize,
+    )
     fig = Figure(size = params.fig_size)
     ax = Axis3(
-        fig[1, 1],
+        fig[1, 1];
         title = title,
         xlabel = axis_labels[1],
         ylabel = axis_labels[2],
         zlabel = axis_labels[3],
+        fs...,
     )
 
     # Set up initial ranges and limits
@@ -910,9 +940,15 @@ function create_level_set_animation(
     limits!(ax, x_range..., y_range..., z_range_grid...)
 
     layers = overlays === nothing ? [] : _overlay_layers(ax, overlays)
-    overlays === nothing || _overlay_legend!(fig[1, 2], overlays; index_names = index_names)
+    overlays === nothing ||
+        _overlay_legend!(fig[1, 2], overlays; index_names = index_names, labelsize = fontsize)
     level_text = Observable("")
-    level_label && Label(fig[2, 1], level_text, tellwidth = false)
+    level_label && Label(
+        fig[2, 1],
+        level_text;
+        tellwidth = false,
+        (fontsize === nothing ? (;) : (; fontsize = fontsize, padding = (0, 0, 0, 2fontsize)))...,
+    )
 
     level_points = Observable(Point3f[])
     data_points = Observable(Point3f[])
