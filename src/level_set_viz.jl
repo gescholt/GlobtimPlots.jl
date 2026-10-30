@@ -842,7 +842,9 @@ drawn in place of the coarse grid inside their bounding boxes (the coarse grid m
 a tensor grid with increasing axes; where two patches overlap both are drawn).
 With `patch_taper` (default) a patch keeps every crossing in its inner 40 % and thins
 them towards its edge, down to the coarse grid's density, so the patch does not show as
-a denser rectangle.
+a denser rectangle. A patch may carry its own `taper::Bool` (overrides `patch_taper`) and
+`skip` mask (its shape; an edge between two skipped nodes is not drawn), so tiles that
+share a face, each skipping its upper faces, draw that face once.
 `shading` (`:crossings` only) colours each point by `0.2 + 0.8 |n · l|`, `n` the unit
 gradient at the point and `l` a light beside the camera (the eye direction tilted up),
 through `level_colormap`; both sides of a sheet shade alike.
@@ -987,8 +989,14 @@ function create_level_set_animation(
         pts, nrm = level_set_crossings(grid, values, level; normals = true, skip = skip)
         if patches !== nothing
             for pt in patches
-                p2, n2 = level_set_crossings(pt.grid, pt.values, level; normals = true)
-                if patch_taper && size(pt.grid, 1) > 1
+                p2, n2 = level_set_crossings(
+                    pt.grid,
+                    pt.values,
+                    level;
+                    normals = true,
+                    skip = get(pt, :skip, nothing),
+                )
+                if get(pt, :taper, patch_taper) && size(pt.grid, 1) > 1
                     lo = reduce((a, b) -> min.(a, b), vec(pt.grid))
                     hi = reduce((a, b) -> max.(a, b), vec(pt.grid))
                     c, hw = (lo + hi) / 2, max.((hi - lo) / 2, eps(T))
