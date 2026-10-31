@@ -110,7 +110,8 @@ function _overlay_legend!(pos, overlays; index_names = INDEX_NAMES, labelsize = 
                 push!(
                     labels,
                     names !== nothing ? names[k+1] :
-                    n_indexed == 1 ? index_names[k+1] : string(ov.label, ": ", index_names[k+1]),
+                    n_indexed == 1 ? index_names[k+1] :
+                    string(ov.label, ": ", index_names[k+1]),
                 )
             end
         else
@@ -910,19 +911,20 @@ function create_level_set_animation(
 
     # `fontsize`: the legend, caption and axis-label size (title 1.3×, tick labels 0.8×);
     # `nothing` keeps Makie's defaults
-    fs = fontsize === nothing ? (;) :
+    fs =
+        fontsize === nothing ? (;) :
         (;
-        titlesize = 1.3fontsize,
-        xlabelsize = fontsize,
-        ylabelsize = fontsize,
-        zlabelsize = fontsize,
-        xticklabelsize = 0.8fontsize,
-        yticklabelsize = 0.8fontsize,
-        zticklabelsize = 0.8fontsize,
-        xlabeloffset = 2.6fontsize,
-        ylabeloffset = 2.6fontsize,
-        zlabeloffset = 2.6fontsize,
-    )
+            titlesize = 1.3fontsize,
+            xlabelsize = fontsize,
+            ylabelsize = fontsize,
+            zlabelsize = fontsize,
+            xticklabelsize = 0.8fontsize,
+            yticklabelsize = 0.8fontsize,
+            zticklabelsize = 0.8fontsize,
+            xlabeloffset = 2.6fontsize,
+            ylabeloffset = 2.6fontsize,
+            zlabeloffset = 2.6fontsize,
+        )
     fig = Figure(size = params.fig_size)
     ax = Axis3(
         fig[1, 1];
@@ -940,14 +942,21 @@ function create_level_set_animation(
     limits!(ax, x_range..., y_range..., z_range_grid...)
 
     layers = overlays === nothing ? [] : _overlay_layers(ax, overlays)
-    overlays === nothing ||
-        _overlay_legend!(fig[1, 2], overlays; index_names = index_names, labelsize = fontsize)
+    overlays === nothing || _overlay_legend!(
+        fig[1, 2],
+        overlays;
+        index_names = index_names,
+        labelsize = fontsize,
+    )
     level_text = Observable("")
     level_label && Label(
         fig[2, 1],
         level_text;
         tellwidth = false,
-        (fontsize === nothing ? (;) : (; fontsize = fontsize, padding = (0, 0, 0, 2fontsize)))...,
+        (
+            fontsize === nothing ? (;) :
+            (; fontsize = fontsize, padding = (0, 0, 0, 2fontsize))
+        )...,
     )
 
     level_points = Observable(Point3f[])
