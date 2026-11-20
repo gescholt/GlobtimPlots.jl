@@ -18,7 +18,7 @@ using GlobtimPlots
     #     it is the first thing to reconsider if this package's CI wall becomes a
     #     problem.
     #
-    # undefined_exports stays off: `@reexport using CairoMakie` re-exports Makie
+    # undefined_exports stays off: `@reexport using Makie` re-exports Makie
     # symbols that are only defined lazily at runtime — currently Sphere, Text,
     # density, rotate! and volume. Not fixable from here, and our own exports are
     # covered by the forward declarations in GlobtimPlots.jl.

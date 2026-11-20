@@ -4,7 +4,7 @@
 # Plots original functions alongside their polynomial approximations with critical points.
 
 using DataFrames
-using LaTeXStrings
+using Makie: LaTeXString  # Makie loads LaTeXStrings and exports @L_str, not the type
 
 """
     plot_1d_polynomial_approximation(
@@ -37,7 +37,7 @@ Plot a 1D function with its polynomial approximation and critical points.
 - `figsize`: Figure size in pixels (default: (800, 600))
 
 # Returns
-- `Figure`: CairoMakie Figure object
+- `Figure`: Makie Figure object
 
 # Example
 ```julia
@@ -221,7 +221,7 @@ Create a multi-panel comparison figure showing polynomial approximations at diff
 - `n_samples`: Number of sample points used in construction (shown in legend)
 
 # Returns
-- `Figure`: CairoMakie Figure with one panel per degree
+- `Figure`: Makie Figure with one panel per degree
 """
 function plot_1d_comparison(
     f::Function,

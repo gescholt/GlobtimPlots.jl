@@ -5,9 +5,8 @@ Label-aware adaptive plotting for Globtim experiment results.
 Automatically generates appropriate visualizations based on available tracking labels.
 """
 
-using CairoMakie
-# NOTE: GLMakie removed - causes macOS precompilation segfault
-# For interactive plots, users should: using GLMakie; GLMakie.activate!()
+# Figures are built with the abstract Makie API (`using Makie` in GlobtimPlots.jl).
+# Rendering and saving need a backend loaded by the user, e.g. `using CairoMakie`.
 
 """
     PlotBackend
@@ -16,12 +15,12 @@ Enum for plot backend selection.
 """
 @enum PlotBackend begin
     Interactive  # GLMakie for interactive plots (requires `using GLMakie`)
-    Static       # CairoMakie for static images
+    Static       # static figures (render/save with any backend, e.g. CairoMakie)
 end
 
-"""Resolve Makie backend module: CairoMakie for Static, GLMakie (loaded lazily) for Interactive."""
+"""Resolve the module whose API builds the figure: Makie for Static, GLMakie (loaded lazily) for Interactive."""
 function _resolve_makie_backend(backend::PlotBackend)
-    backend == Static && return CairoMakie
+    backend == Static && return Makie
     isdefined(Main, :GLMakie) ||
         error("GLMakie must be loaded for Interactive backend. Run 'using GLMakie' first.")
     return Main.GLMakie
@@ -626,15 +625,16 @@ end
 """
     save_plot(fig::Figure, output_path::String; format=:png)
 
-Save a Makie figure to file.
+Save a Makie figure to file with the active Makie backend. PNG works with any
+file-capable backend; `:pdf` and `:svg` need CairoMakie (`using CairoMakie`).
 """
 function save_plot(fig::Figure, output_path::String; format = :png)
     if format == :png
-        CairoMakie.save(output_path, fig)
+        Makie.save(output_path, fig)
     elseif format == :pdf
-        CairoMakie.save(output_path, fig, pt_per_unit = 1)
+        Makie.save(output_path, fig, pt_per_unit = 1)
     elseif format == :svg
-        CairoMakie.save(output_path, fig)
+        Makie.save(output_path, fig)
     else
         error("Unsupported format: $format. Use :png, :pdf, or :svg")
     end

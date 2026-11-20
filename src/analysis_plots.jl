@@ -205,7 +205,7 @@ end
 
 Plot polynomial approximation level sets with critical points overlaid.
 
-Handles per-coordinate scaling factors. Creates a CairoMakie contour plot
+Handles per-coordinate scaling factors. Creates a Makie contour plot
 with scattered critical points (near/far, captured/uncaptured).
 
 # Keyword arguments
@@ -245,8 +245,8 @@ function cairo_plot_polyapprox_levelset(
     z_coords = pol.z
 
     if size(coords)[2] == 2
-        fig = CairoMakie.Figure(size = figure_size)
-        ax = CairoMakie.Axis(
+        fig = Makie.Figure(size = figure_size)
+        ax = Makie.Axis(
             fig[1, 1];
             title = title,
             titlesize = title_fontsize,
@@ -294,7 +294,7 @@ function cairo_plot_polyapprox_levelset(
 
         # Create contour plot
         chosen_colormap = colormap
-        cf = CairoMakie.contourf!(
+        cf = Makie.contourf!(
             ax,
             x_unique,
             y_unique,
@@ -311,7 +311,7 @@ function cairo_plot_polyapprox_levelset(
             # Far points
             not_close_idx = .!df.close
             if any(not_close_idx)
-                CairoMakie.scatter!(
+                Makie.scatter!(
                     ax,
                     df.x1[not_close_idx],
                     df.x2[not_close_idx],
@@ -327,7 +327,7 @@ function cairo_plot_polyapprox_levelset(
             # Near points
             close_idx = df.close
             if any(close_idx)
-                CairoMakie.scatter!(
+                Makie.scatter!(
                     ax,
                     df.x1[close_idx],
                     df.x2[close_idx],
@@ -341,7 +341,7 @@ function cairo_plot_polyapprox_levelset(
             end
         else
             # All points if no close/far distinction
-            CairoMakie.scatter!(
+            Makie.scatter!(
                 ax,
                 df.x1,
                 df.x2,
@@ -358,7 +358,7 @@ function cairo_plot_polyapprox_levelset(
             captured_idx = df_min.captured
 
             if any(uncaptured_idx)
-                CairoMakie.scatter!(
+                Makie.scatter!(
                     ax,
                     df_min.x1[uncaptured_idx],
                     df_min.x2[uncaptured_idx],
@@ -372,7 +372,7 @@ function cairo_plot_polyapprox_levelset(
 
             # Only show captured points if show_captured is true
             if show_captured && any(captured_idx)
-                CairoMakie.scatter!(
+                Makie.scatter!(
                     ax,
                     df_min.x1[captured_idx],
                     df_min.x2[captured_idx],
@@ -386,11 +386,11 @@ function cairo_plot_polyapprox_levelset(
         end
 
         if show_colorbar
-            CairoMakie.Colorbar(fig[1, 2], cf; label = colorbar_label, width = 14)
+            Makie.Colorbar(fig[1, 2], cf; label = colorbar_label, width = 14)
         end
         if show_legend && !isempty(legend_entries)
             if legend_below
-                CairoMakie.Legend(
+                Makie.Legend(
                     fig[2, 1:(show_colorbar ? 2 : 1)],
                     ax;
                     orientation = :horizontal,
@@ -399,7 +399,7 @@ function cairo_plot_polyapprox_levelset(
                     patchsize = (18, 18),
                 )
             else
-                CairoMakie.axislegend(
+                Makie.axislegend(
                     ax;
                     position = :rt,
                     framevisible = true,

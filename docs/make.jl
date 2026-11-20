@@ -1,5 +1,5 @@
 using Documenter
-using GlobtimPlots
+using GlobtimPlots, CairoMakie
 
 # docs/src/tutorial.md is derived from the README (see docs/tutorial_from_readme.jl);
 # regenerate it on every build so the site can never drift from the README.

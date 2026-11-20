@@ -1,7 +1,7 @@
 # partition_viz.jl
 # 2D domain partition visualization for adaptive mesh refinement
-# Uses CairoMakie for publication-quality static plots
-# Note: Rect is imported at module level in GlobtimPlots.jl
+# Backend-agnostic Makie code (save as PDF with CairoMakie loaded)
+# Note: Rect comes from Makie (`using Makie` in GlobtimPlots.jl)
 
 """
     PartitionStyle

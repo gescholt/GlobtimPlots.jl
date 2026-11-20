@@ -1,17 +1,17 @@
 module GlobtimPlots
 
-# Core plotting dependencies
-using CairoMakie
-# NOTE: GLMakie is not a hard dependency - it causes a precompilation segfault on
-# macOS (GLFW monitor detection bug). Load it separately: using GLMakie; GLMakie.activate!()
+# Core plotting dependencies. GlobtimPlots builds figures with the abstract Makie
+# API and depends on no backend: rendering and `save` need one loaded by the user
+# (`using CairoMakie` for files, `using GLMakie` / `using WGLMakie` for interaction).
+using Makie
 using DataFrames
 using Statistics
 using ColorSchemes
 
-# Re-export CairoMakie so `using GlobtimPlots` alone gives a working static backend
-# (Figure, Axis, save, ...). Users can still switch: using GLMakie; GLMakie.activate!()
+# Re-export Makie so `using GlobtimPlots` gives Figure, Axis, save, ... The backend
+# is the user's choice: `using GlobtimPlots, CairoMakie`.
 using Reexport
-@reexport using CairoMakie
+@reexport using Makie
 
 # Data structures from Globtim / GlobtimPostProcessing are consumed by duck typing
 # (plus the adapters in interfaces.jl), which keeps the dependency direction one-way.
@@ -27,15 +27,14 @@ include("experiment_results_plots.jl")  # cluster experiment results visualizati
 # Campaign plotting (duck-typed over ExperimentResult / CampaignResults)
 include("CampaignPlotting.jl")
 
-# Subdivision tree visualization (adaptive refinement from Globtim)
+# Subdivision tree visualization (adaptive refinement from Globtim); the
+# graph drawing itself is in the GraphMakie extension
 include("subdivision_tree_viz.jl")
 
 # 1D polynomial approximation visualization
 include("plot_1d_approx.jl")
 
-# 2D partition visualization
-# (GeometryBasics is a transitive dep via CairoMakie)
-using GeometryBasics: Rect
+# 2D partition visualization (Rect comes from Makie)
 include("partition_viz.jl")
 
 # Subdivision partition visualization (adaptive subdivision experiments)
@@ -48,9 +47,12 @@ include("subdivision_error_heatmap.jl")
 include("interactive_error_explorer.jl")
 include("interactive_levelset_explorer.jl")
 
-# Capture analysis + refinement trajectories (GlobtimPostProcessing types)
-include("capture_analysis_plots.jl")
+# Refinement trajectory style (the plotting functions over GlobtimPostProcessing
+# types are in the GlobtimPostProcessing extension)
 include("refinement_trajectory_viz.jl")
+
+# Stubs for the functions whose methods live in package extensions
+include("extension_stubs.jl")
 
 # Backend-agnostic Hessian/eigenvalue plots
 include("hessian_eigenvalue_plots.jl")

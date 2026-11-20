@@ -12,7 +12,7 @@ is generated from this section and shows the rendered figures.
 ### Level set with critical points
 
 ```@example tutorial
-using Globtim, GlobtimPlots
+using Globtim, GlobtimPlots, CairoMakie
 using DynamicPolynomials: @polyvar
 import HomotopyContinuation  # enables Globtim's :hc solver (`import`: it also exports a `save`)
 
@@ -82,10 +82,12 @@ fig_l2
 ### Adaptive subdivision
 
 Globtim's `adaptive_refine` splits the domain until every leaf is approximated to
-tolerance. The tree can be drawn directly, overlaid on the objective, or turned into
-an approximation-error heatmap:
+tolerance. The tree can be drawn directly (`plot_subdivision_tree` needs GraphMakie),
+overlaid on the objective, or turned into an approximation-error heatmap:
 
 ```@example tutorial
+using GraphMakie   # enables plot_subdivision_tree
+
 g(p) = sin(5 * p[1]) + 0.3 * sin(p[2])       # high frequency along x₁ only
 bounds = [(-2.0, 2.0), (-2.0, 2.0)]
 tree = adaptive_refine(g, bounds, 4;

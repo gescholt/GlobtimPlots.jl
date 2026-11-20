@@ -50,13 +50,13 @@ pkg> add GlobtimPlots
 Until the registration in General completes, install from the repository instead:
 `pkg> add https://github.com/gescholt/GlobtimPlots.jl`.
 
-`Globtim` and `GlobtimPostProcessing` are dependencies and come in automatically, and
-`CairoMakie` is re-exported, so `using GlobtimPlots` alone gives a working static backend
-(`Figure`, `save`, ...). The examples below also solve for critical points, which needs
-Globtim's homotopy-continuation solver:
+`Globtim` is a dependency and comes in automatically. GlobtimPlots depends on Makie but on
+no Makie backend: add one and load it next to GlobtimPlots, `CairoMakie` for files (PNG /
+PDF / SVG). The examples below also solve for critical points, which needs Globtim's
+homotopy-continuation solver, and draw a subdivision tree, which needs GraphMakie:
 
 ```julia-repl
-pkg> add HomotopyContinuation DynamicPolynomials
+pkg> add CairoMakie HomotopyContinuation DynamicPolynomials GraphMakie
 ```
 
 For interactive windows add `GLMakie` (or `WGLMakie` for the browser) — see
@@ -73,7 +73,7 @@ is generated from this section and shows the rendered figures.
 ### Level set with critical points
 
 ```julia
-using Globtim, GlobtimPlots
+using Globtim, GlobtimPlots, CairoMakie
 using DynamicPolynomials: @polyvar
 import HomotopyContinuation  # enables Globtim's :hc solver (`import`: it also exports a `save`)
 
@@ -143,10 +143,12 @@ fig_l2
 ### Adaptive subdivision
 
 Globtim's `adaptive_refine` splits the domain until every leaf is approximated to
-tolerance. The tree can be drawn directly, overlaid on the objective, or turned into
-an approximation-error heatmap:
+tolerance. The tree can be drawn directly (`plot_subdivision_tree` needs GraphMakie),
+overlaid on the objective, or turned into an approximation-error heatmap:
 
 ```julia
+using GraphMakie   # enables plot_subdivision_tree
+
 g(p) = sin(5 * p[1]) + 0.3 * sin(p[2])       # high frequency along x₁ only
 bounds = [(-2.0, 2.0), (-2.0, 2.0)]
 tree = adaptive_refine(g, bounds, 4;
@@ -223,10 +225,10 @@ click-to-zoom / click-to-optimize counterparts of the subdivision plots, and als
 | Level sets | `cairo_plot_polyapprox_levelset`, `plot_polyapprox_3d` (GLMakie / WGLMakie), `create_level_set_visualization`, `create_level_set_animation`, `plot_level_set` |
 | Morse diagnostics | `plot_critical_eigenvalues`, `plot_condition_numbers`, `plot_hessian_norms`, `plot_all_eigenvalues`, `plot_raw_vs_refined_eigenvalues` |
 | Degree sweeps | `plot_discrete_l2`, `plot_convergence_analysis`, `plot_l2_convergence_trials`, `plot_distance_statistics`, `plot_convergence_captured`, `plot_theoretical_minimizer_distances` |
-| Subdivision | `plot_subdivision_partition`, `plot_subdivision_on_levelset`, `plot_subdivision_on_levelset_from_bounds`, `plot_subdivision_error_heatmap`, `plot_subdivision_tree`, `print_tree_summary`, `plot_2d_partition`, `plot_l2_trajectories`, `interactive_error_explorer`, `interactive_levelset_explorer` |
+| Subdivision | `plot_subdivision_partition`, `plot_subdivision_on_levelset`, `plot_subdivision_on_levelset_from_bounds`, `plot_subdivision_error_heatmap`, `plot_subdivision_tree` (GraphMakie), `print_tree_summary`, `plot_2d_partition`, `plot_l2_trajectories`, `interactive_error_explorer`, `interactive_levelset_explorer` |
 | 1D approximation | `plot_1d_polynomial_approximation`, `plot_1d_comparison` |
 | Experiments & campaigns | `create_experiment_plots`, `create_campaign_comparison_plot`, `create_single_plot`, `generate_experiment_labels`, `save_plot`, `plot_experiment_results_static`, `plot_experiment_results_interactive` |
-| Capture analysis | `plot_capture_convergence`, `plot_capture_sparsification_combined`, `plot_refinement_trajectories!` |
+| Capture analysis (GlobtimPostProcessing) | `plot_capture_convergence`, `plot_capture_sparsification_combined`, `plot_refinement_trajectories!` |
 | Benchmark outcomes | `plot_verdict_shares`, `plot_predicate_pareto` |
 
 Every function has a docstring; the [API reference](https://gescholt.github.io/GlobtimPlots.jl/dev/api/)
@@ -234,14 +236,24 @@ lists them with their keyword arguments.
 
 ## Backends and extensions
 
-GlobtimPlots draws through the abstract Makie API, so every function works with whichever
-backend is active. `CairoMakie` (static PNG / PDF / SVG) is a hard dependency and is
-activated by default. The interactive backends are optional and enable package extensions:
+GlobtimPlots draws through the abstract Makie API and depends on no backend: functions
+return a `Figure`, and displaying or saving it needs a Makie backend loaded in the session.
+`using GlobtimPlots, CairoMakie` gives static PNG / PDF / SVG output (`save_plot`'s `:pdf`
+and `:svg` formats need CairoMakie). Without a backend, `save` stops with Makie's
+"No backend available!" error.
 
-| Extension | Trigger | Adds |
-|-----------|---------|------|
+Functions that need a further package are package extensions, enabled by loading that
+package:
+
+| Extension | Load | Adds |
+|-----------|------|------|
 | `GlobtimPlotsGLMakieExt` | `using GLMakie` | `plot_polyapprox_3d` with an optional recorded rotation animation; interactive windows for the explorers |
 | `GlobtimPlotsWGLMakieExt` | `using WGLMakie` | `plot_polyapprox_3d` as a WebGL widget for notebooks and Documenter pages |
+| `GlobtimPlotsGraphMakieExt` | `using GraphMakie` | `plot_subdivision_tree` (Graphs and NetworkLayout, also triggers, load with GraphMakie) |
+| `GlobtimPlotsPostProcessingExt` | `using GlobtimPostProcessing` | `plot_capture_convergence`, `plot_capture_sparsification_combined`, `plot_refinement_trajectories!` |
+
+Calling one of these functions without its package raises an error naming the package
+to load.
 
 ## Architecture
 
@@ -251,7 +263,8 @@ Globtim → GlobtimPostProcessing → GlobtimPlots
 ```
 
 Dependencies flow one way: GlobtimPlots consumes the data structures of the two packages
-below it and contains no algorithms or statistics of its own.
+below it and contains no algorithms or statistics of its own. GlobtimPostProcessing is
+optional: the plots that take its types live in a package extension.
 
 ## Testing
 

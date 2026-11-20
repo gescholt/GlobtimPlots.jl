@@ -1,21 +1,14 @@
-"""
-    Capture Analysis Visualization
-
-Multi-panel composite figures showing how polynomial critical points converge
-toward known critical points as polynomial complexity (support size) increases, with
-sparsification speed vs accuracy analysis.
-
-Functions:
-- `plot_capture_convergence`: Distance distributions + capture rate bars (+ optional L2)
-- `plot_capture_sparsification_combined`: Side-by-side: CP accuracy (distance boxplots)
-  + HC solve time (grouped bars with time-saved annotations, L2 range in legend)
-
-Requires: GlobtimPostProcessing (CaptureResult, KnownCriticalPoints)
-"""
-
-using GlobtimPostProcessing: CaptureResult, KnownCriticalPoints
-using Printf
-using Random: MersenneTwister
+# Capture analysis visualization (GlobtimPostProcessing extension)
+#
+# Multi-panel composite figures showing how polynomial critical points converge
+# toward known critical points as polynomial complexity (support size) increases,
+# with sparsification speed vs accuracy analysis.
+#
+# - `plot_capture_convergence`: distance distributions + capture rate bars (+ optional L2)
+# - `plot_capture_sparsification_combined`: CP accuracy (distance boxplots) next to
+#   HC solve time (grouped bars with time-saved annotations, L2 range in legend)
+#
+# The docstrings are on the stubs in src/extension_stubs.jl.
 
 # --- Shared constants & helpers -----------------------------------------------
 
@@ -147,65 +140,7 @@ end
 
 # --- Function 1: plot_capture_convergence -------------------------------------
 
-"""
-    plot_capture_convergence(
-        degree_capture_results::Vector{Tuple{Int, CaptureResult}},
-        known::KnownCriticalPoints;
-        fig_size = (900, 900),
-        l2_errors = nothing,
-        show_l2 = false,
-        support_sizes = nothing,
-        save_path = nothing,
-    ) -> Figure
-
-Create a multi-panel figure showing capture analysis convergence.
-
-When `support_sizes` is provided, the x-axis shows the number of nonzero polynomial
-coefficients (support size) instead of polynomial degree. All spacing and bar widths
-adapt automatically to the data via `_adaptive_spacing`.
-
-# Panels (top to bottom)
-1. **Distance distribution**: One sub-panel per CP type (min/max/saddle), each with its
-   own y-range and log y-scale. Boxplots + jittered scatter of distances from each known
-   CP to its nearest computed CP. Horizontal dashed lines at tolerance levels.
-2. **Capture rate**: Grouped bars showing fraction of known CPs captured
-   at each tolerance level.
-3. **L2 approximation error** (optional): Only shown when both `l2_errors` data is
-   provided AND `show_l2=true`. Not displayed by default.
-
-# Arguments
-- `degree_capture_results`: Vector of `(degree, CaptureResult)` tuples, one per degree.
-  All CaptureResults must use the same `tolerance_fractions`.
-- `known`: `KnownCriticalPoints` with the ground truth.
-
-# Keyword Arguments
-- `fig_size`: Figure dimensions in pixels.
-- `l2_errors`: Optional `Vector{Tuple{Int, Float64}}` of `(degree, l2_error)` pairs.
-- `show_l2`: Whether to display the L2 error panel. Default `false`. Requires `l2_errors`
-  to be provided as well.
-- `support_sizes`: Optional `Dict{Int, Int}` mapping degree -> support size (nonzero
-  coefficients). When provided, x-axis shows support size instead of degree.
-- `save_path`: Optional file path to save the figure (e.g., `"capture_convergence.png"`).
-
-# Returns
-- `Figure`: CairoMakie figure object.
-
-# Example
-```julia
-using GlobtimPlots, GlobtimPostProcessing
-
-# With support size on x-axis
-support_sizes = Dict(dr.degree => dr.support_size
-    for dr in degree_results if dr.status == "success")
-fig = plot_capture_convergence(
-    degree_capture_results, known_cps;
-    support_sizes = support_sizes,
-    l2_errors = [(dr.degree, dr.l2_approx_error) for dr in degree_results if dr.status == "success"],
-)
-display(fig)
-```
-"""
-function plot_capture_convergence(
+function GlobtimPlots.plot_capture_convergence(
     degree_capture_results::Vector{Tuple{Int,CaptureResult}},
     known::KnownCriticalPoints;
     fig_size::Tuple{Int,Int} = (900, 900),
@@ -474,49 +409,7 @@ end
 
 # --- Function 2: plot_capture_sparsification_combined -------------------------
 
-"""
-    plot_capture_sparsification_combined(
-        entries,
-        known::KnownCriticalPoints;
-        fig_size = (1400, 700),
-        save_path = nothing,
-    ) -> Figure
-
-Two-panel side-by-side figure showing the sparsification speed vs accuracy tradeoff.
-
-The x-axis uses support size (number of nonzero coefficients) from the Full variant
-at each degree, so the axis reflects actual polynomial complexity. All spacing and
-bar widths adapt automatically via `_adaptive_spacing`.
-
-# Panel A (left) -- CP Accuracy: Distance to Known CPs
-Stacked per-type subpanels with dodged boxplots for each support size x variant.
-Log-y scale, tolerance reference lines. Shows how much CP accuracy degrades with
-sparsification.
-
-# Panel B (right) -- HC Solve Time
-Grouped bar chart: x-axis = support size, bars dodged by variant. Y-axis = solve time (seconds).
-Each sparsified bar is annotated with absolute time saved.
-Shows how much faster the HC solve is with sparsification.
-
-# Arguments
-- `entries`: Vector of NamedTuples, each with fields:
-  - `degree::Int` -- polynomial degree
-  - `variant_label::String` -- "Full", "1e-5 (mild)", etc.
-  - `threshold::Float64` -- sparsification threshold (0.0 for full polynomial)
-  - `capture_result::CaptureResult` -- full capture analysis
-  - `n_nonzero_coeffs::Int` -- number of non-zero coefficients
-  - `l2_ratio::Float64` -- ratio of sparsified L2 norm to original (1.0 for full)
-  - `solve_time::Float64` -- HC solve wall-clock time in seconds
-- `known::KnownCriticalPoints`: Ground truth critical points.
-
-# Keyword Arguments
-- `fig_size`: Figure dimensions in pixels.
-- `save_path`: Optional file path to save the figure.
-
-# Returns
-- `Figure`: CairoMakie figure object.
-"""
-function plot_capture_sparsification_combined(
+function GlobtimPlots.plot_capture_sparsification_combined(
     entries::Vector{<:NamedTuple},
     known::KnownCriticalPoints;
     fig_size::Tuple{Int,Int} = (1400, 700),

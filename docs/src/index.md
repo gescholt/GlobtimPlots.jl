@@ -41,12 +41,14 @@ Requires Julia 1.12 or newer.
 using Pkg
 Pkg.add("GlobtimPlots")            # once the registration in General completes;
                                    # until then: Pkg.add(url = "https://github.com/gescholt/GlobtimPlots.jl")
+Pkg.add("CairoMakie")              # a Makie backend, for PNG / PDF / SVG files
 Pkg.add(["HomotopyContinuation", "DynamicPolynomials"])   # Globtim's critical-point solver
 ```
 
-`Globtim` and `GlobtimPostProcessing` are dependencies and come in automatically.
-`CairoMakie` is re-exported, so `using GlobtimPlots` alone gives a working static backend.
-Add `GLMakie` for interactive windows (see [Backends](api.md#Backends)).
+`Globtim` is a dependency and comes in automatically. GlobtimPlots depends on Makie but
+on no backend, so load one next to it: `using GlobtimPlots, CairoMakie`. Add `GLMakie`
+for interactive windows, `GraphMakie` for `plot_subdivision_tree` and
+`GlobtimPostProcessing` for the capture-analysis plots (see [Backends](api.md#Backends)).
 
 ## Quick start
 
@@ -54,7 +56,7 @@ Approximate a test function with Globtim, solve for the critical points of the
 approximant, and draw the level set with those points overlaid:
 
 ```julia
-using Globtim, GlobtimPlots
+using Globtim, GlobtimPlots, CairoMakie
 using DynamicPolynomials: @polyvar
 import HomotopyContinuation  # enables Globtim's :hc solver (`import`: it also exports a `save`)
 

@@ -1,7 +1,7 @@
 using Test
 using GlobtimPlots
-using GlobtimPostProcessing: CaptureResult, KnownCriticalPoints
-using CairoMakie
+using GlobtimPostProcessing: CaptureResult, KnownCriticalPoints  # loads GlobtimPlotsPostProcessingExt
+using CairoMakie  # GlobtimPlots has no backend of its own
 
 """
 Build a CaptureResult from distances and known types for testing.
@@ -483,6 +483,9 @@ include("test_postprocessing_integration.jl")
 
 # The README tutorial, extracted and executed from a sandbox directory
 include("test_readme_examples.jl")
+
+# Backend-free loading, extension stubs, and the extensions once their triggers load
+include("test_optional_deps.jl")
 
 # Aqua.jl quality assurance tests
 include("test_aqua.jl")

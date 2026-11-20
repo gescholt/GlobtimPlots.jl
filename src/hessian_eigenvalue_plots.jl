@@ -6,7 +6,7 @@
 # GLMakie and CairoMakie package extensions.
 #
 # Dependencies available in module scope via GlobtimPlots.jl:
-#   CairoMakie (@reexport — brings all Makie symbols into scope)
+#   Makie (@reexport — brings all Makie symbols into scope)
 #   DataFrames, Statistics, ColorSchemes, LinearAlgebra
 #   Globtim (Project.toml dep)
 

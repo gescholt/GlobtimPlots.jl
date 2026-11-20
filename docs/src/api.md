@@ -19,25 +19,34 @@ GlobtimPlots is organized by what you want to draw:
 
 ## Backends
 
-GlobtimPlots draws through the abstract [Makie](https://docs.makie.org/) API, so every
-function works with whichever backend is active. `CairoMakie` is a hard dependency, is
-re-exported, and is active after `using GlobtimPlots`. The interactive backends are
-optional and enable package extensions:
+GlobtimPlots draws through the abstract [Makie](https://docs.makie.org/) API and depends
+on no backend: functions return a `Figure`, and displaying or saving it needs a backend
+loaded in the session (without one, `save` stops with Makie's "No backend available!"
+error). GLMakie and WGLMakie also enable package extensions:
 
 | Backend | Use for | Extension |
 |---------|---------|-----------|
-| `CairoMakie` | Static, publication-quality PNG / PDF / SVG | — (default) |
+| `CairoMakie` | Static, publication-quality PNG / PDF / SVG (`save_plot`'s `:pdf` / `:svg`) | — |
 | `GLMakie` | Interactive windows, `plot_polyapprox_3d` with a recorded rotation, the explorers | `GlobtimPlotsGLMakieExt` |
 | `WGLMakie` | Browser-embedded / Documenter-rendered interactive figures | `GlobtimPlotsWGLMakieExt` |
 
 ```julia
-using GlobtimPlots           # CairoMakie active
+using GlobtimPlots, CairoMakie   # CairoMakie active
 fig = cairo_plot_polyapprox_levelset(apol, ainp, df_cp, df_min)
 save("levelset.png", fig)
 
-using GLMakie                # switches to GLMakie and loads the extension
+using GLMakie                    # switches to GLMakie and loads the extension
 plot_polyapprox_3d(apol, ainp, df_cp, df_min)
 ```
+
+Two more extensions enable functions that need a further package:
+
+| Load | Extension | Adds |
+|------|-----------|------|
+| `using GraphMakie` | `GlobtimPlotsGraphMakieExt` (triggers GraphMakie, Graphs, NetworkLayout; the last two load with GraphMakie) | [`plot_subdivision_tree`](@ref) |
+| `using GlobtimPostProcessing` | `GlobtimPlotsPostProcessingExt` | [`plot_capture_convergence`](@ref), [`plot_capture_sparsification_combined`](@ref), [`plot_refinement_trajectories!`](@ref) |
+
+Without the package these functions raise an error naming it.
 
 ## Data interface
 
@@ -47,7 +56,8 @@ abstract interfaces, [`AbstractPolynomialData`](@ref) and [`AbstractProblemInput
 `ApproxPoly` and `TestInput`; [`GenericPolynomialData`](@ref) and
 [`GenericProblemInput`](@ref) let you plot an approximation produced elsewhere. All
 other functions are duck-typed over DataFrames and the result types of
-GlobtimPostProcessing.
+GlobtimPostProcessing (the capture-analysis plots, which take its types in their
+signatures, are in the GlobtimPostProcessing extension).
 
 ## Docstrings
 
